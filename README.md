@@ -26,35 +26,3 @@
 5. Xuất hoặc xem mã Terraform để triển khai tiếp theo.
 
 > Lưu ý: các số liệu phí được thiết kế để mô phỏng và minh họa, dựa trên mô hình giá tham khảo của AWS, không thay thế cho báo giá hoặc bảng giá chính thức từ AWS.
-
-## Yêu cầu
-
-- Node.js 18+
-- npm
-
-## Chạy local
-
-1. Cài đặt phụ thuộc:
-   ```bash
-   npm install
-   ```
-2. Khởi động ứng dụng:
-   ```bash
-   npm run dev
-   ```
-3. Mở trình duyệt tại địa chỉ hiển thị bởi Vite (thường là http://localhost:3000).
-
-## Build
-
-```bash
-npm run build
-```
-
-## Công nghệ sử dụng
-
-- React + TypeScript
-- Vite
-- Tailwind CSS
-- Motion
-- Terraform HCL generation
-
