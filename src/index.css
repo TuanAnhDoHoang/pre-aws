@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #F27D26;
+  --color-primary-hover: #D66311;
+  --color-primary-container: #F27D26;
+  --color-on-primary-container: #141414;
+  --color-surface-container-low: #E4E3E0;
+  --color-surface-container-lowest: #F1F0ED;
+  --color-on-surface: #141414;
+  --color-on-surface-variant: #2A2A2A;
+  --color-outline-variant: #141414;
+  --color-inverse-surface: #141414;
+  --font-serif: "Georgia", serif;
+}
+
+/* Custom Dotted Grid Background - Artistic Flair Warm Gray background with deep charcoal dots */
+.canvas-grid {
+  background-color: #E4E3E0;
+  background-image: radial-gradient(#141414 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-opacity: 0.15;
+}
+
+/* Custom Scrollbars in deep charcoal / warm gray */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #141414;
+  border-radius: 0px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #F27D26;
+}
+
+/* Connection line pulse animation when running simulation */
+@keyframes trafficFlow {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-traffic {
+  stroke-dasharray: 6, 6;
+  animation: trafficFlow 1.2s linear infinite;
+  stroke: #F27D26;
+}
+
+/* Active node glow (vivid orange, clean, high-contrast) */
+@keyframes nodePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(242, 125, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px 5px rgba(242, 125, 38, 0.6);
+  }
+}
+
+.node-active-glow {
+  animation: nodePulse 1.8s infinite;
+  border-color: #F27D26;
+}
+
+

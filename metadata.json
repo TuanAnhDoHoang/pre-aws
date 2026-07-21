@@ -1,0 +1,6 @@
+{
+  "name": "AWS Services & Terraform Workbench",
+  "description": "An interactive AWS Cloud Architecture Designer that allows architects to drag and drop services, design network topologies, simulate cost, and generate live Terraform configurations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
