@@ -1,0 +1,23 @@
+# 1. Rust build output (Thư mục chứa file biên dịch rất nặng)
+/target
+
+# 2. Environment variables (Chứa mật khẩu, secret key, db credentials)
+.env
+.env.*
+!.env.example
+
+# 3. Executables & Database data (File thực thi script hoặc db storage)
+surrealrun
+*.db
+*.surrealdb
+*.log
+
+# 4. IDE / Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 5. OS Generated files
+.DS_Store
+Thumbs.db
