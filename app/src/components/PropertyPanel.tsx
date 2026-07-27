@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CloudNode, ServiceType, SERVICE_DEFINITIONS } from '../types';
-import { generateFullTerraform } from '../utils';
+import { generateFullTerraform, fetchServicePrice, ServicePricePayload, ServicePriceResult } from '../utils';
 import AwsIcon from './AwsIcons';
 
 interface PropertyPanelProps {
@@ -98,6 +98,33 @@ export default function PropertyPanel({
   const [isExpanded, setIsExpanded] = useState(false);
   const [savedWidth, setSavedWidth] = useState(320);
   const [activeTab, setActiveTab] = useState<'info' | 'terraform'>('info');
+
+  // Price fetching state
+  const [fetchedPrice, setFetchedPrice] = useState<ServicePriceResult | null>(null);
+  const [isFetchingPrice, setIsFetchingPrice] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!selectedNode) {
+      setFetchedPrice(null);
+      return;
+    }
+    setIsFetchingPrice(true);
+    const payload: ServicePricePayload = {
+      serviceType: selectedNode.type,
+      region,
+      name: selectedNode.name,
+      properties: selectedNode.properties || {},
+    };
+
+    fetchServicePrice(payload)
+      .then((res) => {
+        setFetchedPrice(res);
+        setIsFetchingPrice(false);
+      })
+      .catch(() => {
+        setIsFetchingPrice(false);
+      });
+  }, [selectedNode?.id, selectedNode?.name, JSON.stringify(selectedNode?.properties), region]);
 
   useEffect(() => {
     if (selectedNode || selectedServiceType) {
@@ -382,37 +409,61 @@ export default function PropertyPanel({
             />
           </div>
 
-          {/* Compute Specific Fields */}
+          {/* Price fetched from server (Giả lập fetch price với thông tin + region) */}
+          <div className="bg-[#141414] text-white p-3 border border-[#141414] rounded-none mt-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-black uppercase text-[#F27D26] tracking-wider flex items-center gap-1">
+                <span className="material-symbols-outlined text-xs">payments</span>
+                Giá từ Server (Fetch Price)
+              </span>
+              {isFetchingPrice ? (
+                <span className="text-[10px] text-gray-400 font-mono animate-pulse">Đang lấy giá...</span>
+              ) : (
+                <span className="text-xs font-black font-mono text-emerald-400">
+                  {fetchedPrice?.display || '---'}
+                </span>
+              )}
+            </div>
+            <div className="text-[9px] text-gray-300 font-mono mt-1.5 pt-1.5 border-t border-gray-800 flex justify-between items-center">
+              <span>Đơn vị: <strong className="text-white">{fetchedPrice?.unit || 'USD/giờ'}</strong></span>
+              <span>Region: <strong className="text-[#F27D26]">{region}</strong></span>
+            </div>
+          </div>
+          {/* Compute Specific Fields (EC2: chỉ chọn tên, instance type) */}
           {selectedNode.type === 'compute' && (
-            <>
-              <div>
-                <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
-                  Instance Type
-                </label>
-                <select
-                  value={props.instance_type || 't3.large'}
-                  onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, instance_type: e.target.value })}
-                  className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
-                >
-                  <option value="t2.micro">t2.micro ($0.011/giờ)</option>
-                  <option value="t3.micro">t3.micro ($0.013/giờ)</option>
-                  <option value="t3.large">t3.large ($0.107/giờ)</option>
-                  <option value="m5.large">m5.large ($0.096/giờ)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
-                  AMI ID
-                </label>
-                <input
-                  type="text"
-                  value={props.ami || 'ami-0c55b159cbfafe1f0'}
-                  onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, ami: e.target.value })}
-                  className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface font-mono"
-                />
-              </div>
-            </>
+            <div>
+              <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                Instance Type
+              </label>
+              <select
+                value={props.instance_type || 't3.large'}
+                onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, instance_type: e.target.value })}
+                className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+              >
+                <option value="t4g.nano">t4g.nano</option>
+                <option value="t4g.micro">t4g.micro</option>
+                <option value="t4g.small">t4g.small</option>
+                <option value="t4g.medium">t4g.medium</option>
+                <option value="t4g.large">t4g.large</option>
+                <option value="t4g.xlarge">t4g.xlarge</option>
+                <option value="t4g.2xlarge">t4g.2xlarge</option>
+                <option value="t3.nano">t3.nano</option>
+                <option value="t3.micro">t3.micro</option>
+                <option value="t3.small">t3.small</option>
+                <option value="t3.medium">t3.medium</option>
+                <option value="t3.large">t3.large</option>
+                <option value="t3.xlarge">t3.xlarge</option>
+                <option value="t3.2xlarge">t3.2xlarge</option>
+                <option value="t3a.nano">t3a.nano</option>
+                <option value="t3a.micro">t3a.micro</option>
+                <option value="t3a.small">t3a.small</option>
+                <option value="t3a.medium">t3a.medium</option>
+                <option value="t3a.large">t3a.large</option>
+                <option value="t3a.xlarge">t3a.xlarge</option>
+              </select>
+            </div>
           )}
+
 
           {/* RDS Database Specific Fields */}
           {selectedNode.type === 'rds' && (
@@ -423,7 +474,7 @@ export default function PropertyPanel({
                     Engine
                   </label>
                   <select
-                    value={props.engine || 'mysql'}
+                    value={props.engine || 'postgres'}
                     onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, engine: e.target.value })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
@@ -431,7 +482,7 @@ export default function PropertyPanel({
                     <option value="postgres">PostgreSQL</option>
                   </select>
                 </div>
-                <div>
+                {/* <div>
                   <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
                     Dung lượng (GB)
                   </label>
@@ -443,25 +494,114 @@ export default function PropertyPanel({
                     onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, allocated_storage: parseInt(e.target.value) || 20 })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface"
                   />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
-                  Hạng Instance
-                </label>
-                <select
-                  value={props.instance_class || 'db.t3.micro'}
-                  onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, instance_class: e.target.value })}
-                  className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
-                >
-                  <option value="db.t3.micro">db.t3.micro ($0.017/giờ)</option>
-                  <option value="db.t3.large">db.t3.large ($0.136/giờ)</option>
-                </select>
+                </div> */}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
-                    Tên DB
+                    Instance Type
+                  </label>
+                  <select
+                    value={props.instance_type || 'db.t3.micro'}
+                    onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, instance_type: e.target.value })}
+                    className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+                  >
+                    <option value="db.t4g.micro">db.t4g.micro</option>
+                    <option value="db.t4g.small">db.t4g.small</option>
+                    <option value="db.t4g.medium">db.t4g.medium</option>
+                    <option value="db.t4g.large">db.t4g.large</option>
+                    <option value="db.t4g.xlarge">db.t4g.xlarge</option>
+                    <option value="db.t4g.2xlarge">db.t4g.2xlarge</option>
+                    <option value="db.t3.micro">db.t3.micro</option>
+                    <option value="db.t3.small">db.t3.small</option>
+                    <option value="db.t3.medium">db.t3.medium</option>
+                    <option value="db.t3.large">db.t3.large</option>
+                    <option value="db.t3.xlarge">db.t3.xlarge</option>
+                    <option value="db.t3.2xlarge">db.t3.2xlarge</option>
+                    <option value="db.m8g.large">db.m8g.large</option>
+                    <option value="db.m8g.xlarge">db.m8g.xlarge</option>
+                    <option value="db.m8g.2xlarge">db.m8g.2xlarge</option>
+                    <option value="db.m8g.4xlarge">db.m8g.4xlarge</option>
+                    <option value="db.m8g.8xlarge">db.m8g.8xlarge</option>
+                    <option value="db.m8g.12xlarge">db.m8g.12xlarge</option>
+                    <option value="db.m8g.16xlarge">db.m8g.16xlarge</option>
+                    <option value="db.m8g.24xlarge">db.m8g.24xlarge</option>
+                    <option value="db.m8g.48xlarge">db.m8g.48xlarge</option>
+                    <option value="db.m7g.large">db.m7g.large</option>
+                    <option value="db.m7g.xlarge">db.m7g.xlarge</option>
+                    <option value="db.m7g.2xlarge">db.m7g.2xlarge</option>
+                    <option value="db.m7g.4xlarge">db.m7g.4xlarge</option>
+                    <option value="db.m7g.8xlarge">db.m7g.8xlarge</option>
+                    <option value="db.m7g.12xlarge">db.m7g.12xlarge</option>
+                    <option value="db.m7g.16xlarge">db.m7g.16xlarge</option>
+                    <option value="db.m7i.large">db.m7i.large</option>
+                    <option value="db.m7i.xlarge">db.m7i.xlarge</option>
+                    <option value="db.m7i.2xlarge">db.m7i.2xlarge</option>
+                    <option value="db.m7i.4xlarge">db.m7i.4xlarge</option>
+                    <option value="db.m7i.8xlarge">db.m7i.8xlarge</option>
+                    <option value="db.m7i.12xlarge">db.m7i.12xlarge</option>
+                    <option value="db.m7i.16xlarge">db.m7i.16xlarge</option>
+                    <option value="db.m7i.24xlarge">db.m7i.24xlarge</option>
+                    <option value="db.m7i.48xlarge">db.m7i.48xlarge</option>
+                    <option value="db.m6g.large">db.m6g.large</option>
+                    <option value="db.m6g.xlarge">db.m6g.xlarge</option>
+                    <option value="db.m6g.2xlarge">db.m6g.2xlarge</option>
+                    <option value="db.m6g.4xlarge">db.m6g.4xlarge</option>
+                    <option value="db.m6g.8xlarge">db.m6g.8xlarge</option>
+                    <option value="db.m6g.12xlarge">db.m6g.12xlarge</option>
+                    <option value="db.m6g.16xlarge">db.m6g.16xlarge</option>
+                    <option value="db.m6gd.large">db.m6gd.large</option>
+                    <option value="db.m6gd.xlarge">db.m6gd.xlarge</option>
+                    <option value="db.m6gd.2xlarge">db.m6gd.2xlarge</option>
+                    <option value="db.m6gd.4xlarge">db.m6gd.4xlarge</option>
+                    <option value="db.m6gd.8xlarge">db.m6gd.8xlarge</option>
+                    <option value="db.m6gd.12xlarge">db.m6gd.12xlarge</option>
+                    <option value="db.m6gd.16xlarge">db.m6gd.16xlarge</option>
+                    <option value="db.m6i.large">db.m6i.large</option>
+                    <option value="db.m6i.xlarge">db.m6i.xlarge</option>
+                    <option value="db.m6i.2xlarge">db.m6i.2xlarge</option>
+                    <option value="db.m6i.4xlarge">db.m6i.4xlarge</option>
+                    <option value="db.m6i.8xlarge">db.m6i.8xlarge</option>
+                    <option value="db.m6i.12xlarge">db.m6i.12xlarge</option>
+                    <option value="db.m6i.16xlarge">db.m6i.16xlarge</option>
+                    <option value="db.m6i.24xlarge">db.m6i.24xlarge</option>
+                    <option value="db.m6i.32xlarge">db.m6i.32xlarge</option>
+                    <option value="db.m5.large">db.m5.large</option>
+                    <option value="db.m5.xlarge">db.m5.xlarge</option>
+                    <option value="db.m5.2xlarge">db.m5.2xlarge</option>
+                    <option value="db.m5.4xlarge">db.m5.4xlarge</option>
+                    <option value="db.m5.8xlarge">db.m5.8xlarge</option>
+                    <option value="db.m5.12xlarge">db.m5.12xlarge</option>
+                    <option value="db.m5.16xlarge">db.m5.16xlarge</option>
+                    <option value="db.m5.24xlarge">db.m5.24xlarge</option>
+                    <option value="db.m5d.large">db.m5d.large</option>
+                    <option value="db.m5d.xlarge">db.m5d.xlarge</option>
+                    <option value="db.m5d.2xlarge">db.m5d.2xlarge</option>
+                    <option value="db.m5d.4xlarge">db.m5d.4xlarge</option>
+                    <option value="db.m5d.8xlarge">db.m5d.8xlarge</option>
+                    <option value="db.m5d.12xlarge">db.m5d.12xlarge</option>
+                    <option value="db.m5d.16xlarge">db.m5d.16xlarge</option>
+                    <option value="db.m5d.24xlarge">db.m5d.24xlarge</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                    Deployment Type
+                  </label>
+                  <select
+                    value={props.deployment_type || 'single'}
+                    onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, deployment_type: e.target.value })}
+                    className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+                  >
+                    <option value="single">Single-AZ</option>
+                    <option value="multi-az">Multi-AZ</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                    Tên RDS
                   </label>
                   <input
                     type="text"
@@ -723,9 +863,8 @@ export default function PropertyPanel({
 
   return (
     <aside
-      className={`bg-[#F1F0ED] border-l border-[#141414] flex flex-col h-full relative z-30 overflow-hidden ${
-        isDragging ? '' : 'transition-[width] duration-150'
-      }`}
+      className={`bg-[#F1F0ED] border-l border-[#141414] flex flex-col h-full relative z-30 overflow-hidden ${isDragging ? '' : 'transition-[width] duration-150'
+        }`}
       style={{ width: collapsed ? 0 : width }}
     >
       {!collapsed && (
@@ -759,22 +898,20 @@ export default function PropertyPanel({
           <div className="flex border-b border-[#141414] bg-[#E4E3E0] shrink-0 font-sans text-xs">
             <button
               onClick={() => setActiveTab('info')}
-              className={`flex-1 py-3 px-1.5 font-black uppercase text-center border-r border-[#141414] transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === 'info'
-                  ? 'bg-[#F1F0ED] text-[#F27D26] font-extrabold border-b-2 border-b-[#F27D26]'
-                  : 'text-on-surface/70 hover:bg-[#F1F0ED]/50 hover:text-on-surface'
-              }`}
+              className={`flex-1 py-3 px-1.5 font-black uppercase text-center border-r border-[#141414] transition-all cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === 'info'
+                ? 'bg-[#F1F0ED] text-[#F27D26] font-extrabold border-b-2 border-b-[#F27D26]'
+                : 'text-on-surface/70 hover:bg-[#F1F0ED]/50 hover:text-on-surface'
+                }`}
             >
               <span className="material-symbols-outlined text-sm">tune</span>
               Cấu hình & Chi tiết
             </button>
             <button
               onClick={() => setActiveTab('terraform')}
-              className={`flex-1 py-3 px-1.5 font-black uppercase text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeTab === 'terraform'
-                  ? 'bg-[#F1F0ED] text-[#F27D26] font-extrabold border-b-2 border-b-[#F27D26]'
-                  : 'text-on-surface/70 hover:bg-[#F1F0ED]/50 hover:text-on-surface'
-              }`}
+              className={`flex-1 py-3 px-1.5 font-black uppercase text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === 'terraform'
+                ? 'bg-[#F1F0ED] text-[#F27D26] font-extrabold border-b-2 border-b-[#F27D26]'
+                : 'text-on-surface/70 hover:bg-[#F1F0ED]/50 hover:text-on-surface'
+                }`}
             >
               <span className="material-symbols-outlined text-sm">code</span>
               Mã Terraform

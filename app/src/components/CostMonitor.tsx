@@ -6,9 +6,10 @@ interface CostMonitorProps {
   nodes: CloudNode[];
   onClose: () => void;
   isPlaying: boolean;
+  region?: string;
 }
 
-export default function CostMonitor({ nodes, onClose, isPlaying }: CostMonitorProps) {
+export default function CostMonitor({ nodes, onClose, isPlaying, region = 'ap-southeast-1' }: CostMonitorProps) {
   const [startTime, setStartTime] = useState<string>('--:--:--');
   const [currentTime, setCurrentTime] = useState<string>('--:--:--');
   const [accumulatedCost, setAccumulatedCost] = useState<number>(0.0);
@@ -32,19 +33,19 @@ export default function CostMonitor({ nodes, onClose, isPlaying }: CostMonitorPr
         setCurrentTime(now.toTimeString().split(' ')[0]);
 
         // Calculate rate of cost per second: total hourly rate / 3600
-        const totalHourly = nodes.reduce((sum, node) => sum + calculateNodeCost(node).hourly, 0);
+        const totalHourly = nodes.reduce((sum, node) => sum + calculateNodeCost(node, region).hourly, 0);
         const costPerSecond = totalHourly / 3600;
         setAccumulatedCost((prev) => prev + costPerSecond);
       }, 1000);
     }
 
     return () => clearInterval(interval);
-  }, [isPlaying, nodes]);
+  }, [isPlaying, nodes, region]);
 
   if (!isPlaying) return null;
 
   // Calculate distinct costs
-  const totalHourly = nodes.reduce((sum, idx) => sum + calculateNodeCost(idx).hourly, 0);
+  const totalHourly = nodes.reduce((sum, idx) => sum + calculateNodeCost(idx, region).hourly, 0);
 
   return (
     <div className="absolute top-18 right-4 w-80 bg-[#F1F0ED] border-2 border-[#141414] rounded-none shadow-none z-30 flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">

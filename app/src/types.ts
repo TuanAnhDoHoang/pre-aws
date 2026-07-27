@@ -94,6 +94,7 @@ export const SERVICE_DEFINITIONS: Record<ServiceType, ServiceDefinition> = {
       allocated_storage: 20,
       engine: 'mysql',
       instance_class: 'db.t3.micro',
+      deployment_type: 'single',
       name: 'maindb',
       username: 'admin',
     },

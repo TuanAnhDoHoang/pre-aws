@@ -93,6 +93,7 @@ export const PRESET_PATTERNS: DesignPattern[] = [
           allocated_storage: 40,
           engine: 'postgres',
           instance_class: 'db.t3.large',
+          deployment_type: 'multi-az',
           name: 'app-db',
           username: 'postgres',
         },

@@ -844,8 +844,8 @@ export default function CanvasArea({
 
                 {/* Temporary tiny badge showing current hourly rate */}
                 <span className="text-[9px] font-serif italic text-on-surface-variant/80">
-                  {calculateNodeCost(node).hourly > 0
-                    ? `$${calculateNodeCost(node).hourly.toFixed(3)}/h`
+                  {calculateNodeCost(node, region).hourly > 0
+                    ? `$${calculateNodeCost(node, region).hourly.toFixed(3)}/h`
                     : 'free'}
                 </span>
               </div>

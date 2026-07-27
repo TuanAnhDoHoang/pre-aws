@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { CloudNode, Connection, ServiceType } from './types';
 
 // Helper to sanitize resource names for Terraform (no spaces, lowercase)
@@ -88,6 +89,7 @@ export const INITIAL_NODES: CloudNode[] = [
       allocated_storage: 20,
       engine: 'mysql',
       instance_class: 'db.t3.micro',
+      deployment_type: 'single',
       name: 'maindb',
       username: 'admin',
     },
@@ -106,64 +108,247 @@ export const INITIAL_CONNECTIONS: Connection[] = [
 
 // Price catalog matching typical AWS region prices for simple math
 export const PRICE_CATALOG: Record<string, { hourly: number; unit: string }> = {
-  't3.large': { hourly: 0.107, unit: 'giờ' },
-  't3.micro': { hourly: 0.013, unit: 'giờ' },
-  't2.micro': { hourly: 0.011, unit: 'giờ' },
-  'm5.large': { hourly: 0.096, unit: 'giờ' },
-  'db.t3.micro': { hourly: 0.017, unit: 'giờ' },
-  'db.t3.large': { hourly: 0.136, unit: 'giờ' },
-  'lambda': { hourly: 0.002, unit: 'triệu requests' }, // Lambda cost simplified
-  's3': { hourly: 0.023, unit: 'GB/tháng' },
-  'ebs_gp3': { hourly: 0.00011, unit: 'GB/giờ' }, // approx $0.08 / GB month
-  'elb': { hourly: 0.025, unit: 'giờ' },
-  'cloudfront': { hourly: 0.012, unit: 'GB' },
-  'dynamodb': { hourly: 0.00025, unit: 'triệu ghi/đọc' },
+  't3.large': { hourly: 0.107, unit: 'USD/giờ' },
+  't3.micro': { hourly: 0.013, unit: 'USD/giờ' },
+  't2.micro': { hourly: 0.0116, unit: 'USD/giờ' },
+  'm5.large': { hourly: 0.096, unit: 'USD/giờ' },
+  'c5.large': { hourly: 0.085, unit: 'USD/giờ' },
+  'db.t3.micro': { hourly: 0.017, unit: 'USD/giờ' },
+  'db.t3.large': { hourly: 0.136, unit: 'USD/giờ' },
+  'lambda': { hourly: 0.002, unit: 'USD/triệu request' },
+  's3': { hourly: 0.023, unit: 'USD/GB/tháng' },
+  'ebs_gp3': { hourly: 0.00011, unit: 'USD/GB/giờ' },
+  'elb': { hourly: 0.025, unit: 'USD/giờ' },
+  'cloudfront': { hourly: 0.08, unit: 'USD/GB' },
+  'dynamodb': { hourly: 0.25, unit: 'USD/triệu request' },
   'vpc': { hourly: 0.0, unit: 'miễn phí' },
 };
 
-// Calculate cost for a single node
-export function calculateNodeCost(node: CloudNode): { hourly: number; display: string } {
-  const type = node.type;
-  const props = node.properties;
+export interface ServicePricePayload {
+  serviceType: ServiceType;
+  region: string;
+  name: string;
+  properties: Record<string, any>;
+}
 
-  if (type === 'compute') {
-    const instType = props.instance_type || 't3.large';
-    const rate = PRICE_CATALOG[instType] || PRICE_CATALOG['t3.large'];
-    return { hourly: rate.hourly, display: `$${rate.hourly.toFixed(3)}/giờ` };
-  }
-  if (type === 'rds') {
-    const instClass = props.instance_class || 'db.t3.micro';
-    const rate = PRICE_CATALOG[instClass] || PRICE_CATALOG['db.t3.micro'];
-    // Database storage cost added simplified
-    const storageGB = props.allocated_storage || 20;
-    const storageCostPerHour = (storageGB * 0.115) / 720; // $0.115/GB/month
-    const totalHourly = rate.hourly + storageCostPerHour;
-    return { hourly: totalHourly, display: `$${totalHourly.toFixed(3)}/giờ` };
-  }
-  if (type === 'tg') {
-    // ELB or Target Group
-    const rate = PRICE_CATALOG['elb'];
-    return { hourly: rate.hourly, display: `$${rate.hourly.toFixed(3)}/giờ` };
-  }
-  if (type === 's3') {
-    return { hourly: 0.005, display: `$0.023/GB/tháng` }; // Average flat-rate proxy hourly
-  }
-  if (type === 'ebs') {
-    const size = props.size || 50;
-    const hourlyCost = size * PRICE_CATALOG['ebs_gp3'].hourly;
-    return { hourly: hourlyCost, display: `$${hourlyCost.toFixed(4)}/giờ` };
-  }
-  if (type === 'cloudfront') {
-    return { hourly: 0.008, display: `$0.08/GB` };
-  }
-  if (type === 'dynamodb') {
-    return { hourly: 0.004, display: `$0.25/triệu write` };
-  }
-  if (type === 'lambda') {
-    return { hourly: 0.002, display: `$0.20/triệu requests` };
+export interface ServicePriceResult {
+  price: number;
+  unit: string;
+  display: string;
+  payloadSent?: ServicePricePayload;
+}
+
+/**
+ * Hàm fetch price dùng chung cho tất cả các dịch vụ (giả lập server API).
+ * Đóng gói thông tin do user chọn + region để lấy giá từ server.
+ */
+export async function fetchServicePrice(payload: ServicePricePayload): Promise<ServicePriceResult> {
+  // Giả lập latency server fetch
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  const { serviceType, region, properties } = payload;
+
+  const regionMultiplier: Record<string, number> = {
+    'ap-southeast-1': 1.0,   // Singapore
+    'us-east-1': 0.85,       // N. Virginia
+    'eu-west-1': 1.05,       // Ireland
+    'ap-northeast-1': 1.1,   // Tokyo
+  };
+  const mult = regionMultiplier[region] || 1.0;
+
+  if (serviceType === 'compute') {
+    const response = await axios.post("http://localhost:5000/price", {
+      region,
+      service: "EC2",
+      options: {
+        Ec2: {
+          instance_type: properties.instance_type
+        }
+      }
+    });
+    let price = response.data.price;
+    let uom = response.data.uom;
+    return {
+      price,
+      unit: uom,
+      display: `$${price} USD/giờ`,
+      payloadSent: payload,
+    }
   }
 
-  return { hourly: 0.0, display: 'Miễn phí' };
+  if (serviceType === 'rds') {
+    // const instClass = properties.instance_class || 'db.t3.micro';
+    // const baseRate = PRICE_CATALOG[instClass]?.hourly || 0.017;
+    // const storage = Number(properties.allocated_storage) || 20;
+    // const storageCostPerHour = (storage * 0.115) / 720;
+    // const totalHourly = Number(((baseRate + storageCostPerHour) * mult).toFixed(4));
+    // return {
+    //   price: totalHourly,
+    //   unit: 'USD/giờ',
+    //   display: `$${totalHourly} USD/giờ`,
+    //   payloadSent: payload,
+    // };
+    const response = await axios.post("http://localhost:5000/price", {
+      region,
+      service: "RDS",
+      options: {
+        Rds: {
+          engine: payload.properties.engine,
+          instance_type: payload.properties.instance_type,
+          deployment_type: payload.properties.deployment_type 
+        }
+      }
+    });
+
+    let price = response.data.price;
+    let uom = response.data.uom;
+    return {
+      price,
+      unit: uom,
+      display: `$${price} USD/giờ`,
+      payloadSent: payload,
+    }
+  }
+
+  if (serviceType === 's3') {
+    const finalPrice = Number((0.023 * mult).toFixed(3));
+    return {
+      price: finalPrice,
+      unit: 'USD/GB/tháng',
+      display: `$${finalPrice} USD/GB/tháng`,
+      payloadSent: payload,
+    };
+  }
+
+  if (serviceType === 'ebs') {
+    const size = Number(properties.size) || 50;
+    const hourlyCost = Number((size * PRICE_CATALOG['ebs_gp3'].hourly * mult).toFixed(4));
+    return {
+      price: hourlyCost,
+      unit: 'USD/giờ',
+      display: `$${hourlyCost} USD/giờ`,
+      payloadSent: payload,
+    };
+  }
+
+  if (serviceType === 'tg') {
+    const baseRate = PRICE_CATALOG['elb'].hourly * mult;
+    const finalPrice = Number(baseRate.toFixed(4));
+    return {
+      price: finalPrice,
+      unit: 'USD/giờ',
+      display: `$${finalPrice} USD/giờ`,
+      payloadSent: payload,
+    };
+  }
+
+  if (serviceType === 'cloudfront') {
+    const finalPrice = Number((0.08 * mult).toFixed(3));
+    return {
+      price: finalPrice,
+      unit: 'USD/GB',
+      display: `$${finalPrice} USD/GB`,
+      payloadSent: payload,
+    };
+  }
+
+  if (serviceType === 'dynamodb') {
+    const finalPrice = Number((0.25 * mult).toFixed(2));
+    return {
+      price: finalPrice,
+      unit: 'USD/triệu request',
+      display: `$${finalPrice} USD/triệu request`,
+      payloadSent: payload,
+    };
+  }
+
+  if (serviceType === 'lambda') {
+    const finalPrice = Number((0.20 * mult).toFixed(2));
+    return {
+      price: finalPrice,
+      unit: 'USD/triệu request',
+      display: `$${finalPrice} USD/triệu request`,
+      payloadSent: payload,
+    };
+  }
+
+  return {
+    price: 0,
+    unit: 'USD/giờ',
+    display: 'Miễn phí',
+    payloadSent: payload,
+  };
+}
+
+// Calculate cost for a single node synchronously
+export function calculateNodeCost(node: CloudNode, region: string = 'ap-southeast-1'): { hourly: number; unit: string; display: string } {
+  const payload: ServicePricePayload = {
+    serviceType: node.type,
+    region,
+    name: node.name,
+    properties: node.properties || {},
+  };
+
+  const regionMultiplier: Record<string, number> = {
+    'ap-southeast-1': 1.0,
+    'us-east-1': 0.85,
+    'eu-west-1': 1.05,
+    'ap-northeast-1': 1.1,
+  };
+  const mult = regionMultiplier[region] || 1.0;
+
+  if (node.type === 'compute') {
+    const instType = node.properties?.instance_type || 't3.large';
+    const baseRate = PRICE_CATALOG[instType]?.hourly || 0.107;
+    const finalPrice = Number((baseRate * mult).toFixed(4));
+    return { hourly: finalPrice, unit: 'USD/giờ', display: `$${finalPrice} USD/giờ` };
+  }
+
+  if (node.type === 'rds') {
+    const instClass = node.properties?.instance_class || 'db.t3.micro';
+    const baseRate = PRICE_CATALOG[instClass]?.hourly || 0.017;
+    const storageGB = Number(node.properties?.allocated_storage) || 20;
+    const storageCostPerHour = (storageGB * 0.115) / 720;
+    const totalHourly = Number(((baseRate + storageCostPerHour) * mult).toFixed(4));
+    return { hourly: totalHourly, unit: 'USD/giờ', display: `$${totalHourly} USD/giờ` };
+  }
+
+  if (node.type === 'tg') {
+    const rate = Number((PRICE_CATALOG['elb'].hourly * mult).toFixed(4));
+    return { hourly: rate, unit: 'USD/giờ', display: `$${rate} USD/giờ` };
+  }
+
+  if (node.type === 's3') {
+    const hourly = Number((0.005 * mult).toFixed(4));
+    const monthlyUnit = Number((0.023 * mult).toFixed(3));
+    return { hourly, unit: 'USD/GB/tháng', display: `$${monthlyUnit} USD/GB/tháng` };
+  }
+
+  if (node.type === 'ebs') {
+    const size = Number(node.properties?.size) || 50;
+    const hourlyCost = Number((size * PRICE_CATALOG['ebs_gp3'].hourly * mult).toFixed(4));
+    return { hourly: hourlyCost, unit: 'USD/giờ', display: `$${hourlyCost} USD/giờ` };
+  }
+
+  if (node.type === 'cloudfront') {
+    const hourly = Number((0.008 * mult).toFixed(4));
+    const unitPrice = Number((0.08 * mult).toFixed(3));
+    return { hourly, unit: 'USD/GB', display: `$${unitPrice} USD/GB` };
+  }
+
+  if (node.type === 'dynamodb') {
+    const hourly = Number((0.004 * mult).toFixed(4));
+    const unitPrice = Number((0.25 * mult).toFixed(2));
+    return { hourly, unit: 'USD/triệu request', display: `$${unitPrice} USD/triệu request` };
+  }
+
+  if (node.type === 'lambda') {
+    const hourly = Number((0.002 * mult).toFixed(4));
+    const unitPrice = Number((0.20 * mult).toFixed(2));
+    return { hourly, unit: 'USD/triệu request', display: `$${unitPrice} USD/triệu request` };
+  }
+
+  return { hourly: 0, unit: 'USD/giờ', display: 'Miễn phí' };
 }
 
 // Generate Terraform HCL for a node

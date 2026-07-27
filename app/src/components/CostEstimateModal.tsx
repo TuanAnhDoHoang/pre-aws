@@ -6,9 +6,10 @@ interface CostEstimateModalProps {
   nodes: CloudNode[];
   onClose: () => void;
   isOpen: boolean;
+  region?: string;
 }
 
-export default function CostEstimateModal({ nodes, onClose, isOpen }: CostEstimateModalProps) {
+export default function CostEstimateModal({ nodes, onClose, isOpen, region = 'ap-southeast-1' }: CostEstimateModalProps) {
   const [activeHoursPerDay, setActiveHoursPerDay] = useState<number>(24);
 
   if (!isOpen) return null;
@@ -27,7 +28,7 @@ export default function CostEstimateModal({ nodes, onClose, isOpen }: CostEstima
 
   nodes.forEach((node) => {
     const def = SERVICE_DEFINITIONS[node.type];
-    const cost = calculateNodeCost(node);
+    const cost = calculateNodeCost(node, region);
     
     // Monthly calculation
     let monthlyCost = 0;

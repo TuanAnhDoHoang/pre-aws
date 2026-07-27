@@ -13,14 +13,14 @@ use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    price::{Service, ServiceOption, UOM},
-    service::Region,
+    price::{Service, ServiceOptionRequest, UOM},
     surreal::connect::connect,
 };
 
 mod price;
 mod service;
 mod surreal;
+mod diagram;
 
 #[derive(Clone)]
 struct AppState {
@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state)
         .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:5000")
         .await
         .unwrap();
 
@@ -59,9 +59,9 @@ async fn main() -> anyhow::Result<()> {
 
 #[derive(Debug, Deserialize)]
 struct FetchPricePayload {
-    region: Region,
+    region: String,
     service: Service,
-    options: ServiceOption,
+    options: ServiceOptionRequest,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,8 +75,13 @@ async fn handle_fetch_price(
     Json(payload): Json<FetchPricePayload>,
 ) -> Result<Json<PriceResponseDto>, (StatusCode, String)> {
     let db = state.db;
+
+    println!("=============Before=============");
+    println!("region {:?}", &payload.region);
+    println!("option: {:?}", &payload.options);
+    println!("service: {:?}", &payload.service);
     // Gọi hàm truy vấn database bạn đã viết trước đó
-    let (price, uom) = price::fetch(&db, &payload.service, &payload.region, &payload.options)
+    let (price, uom) = price::fetch(&db, &payload.service, payload.region, payload.options)
         .await
         .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
 

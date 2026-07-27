@@ -1,5 +1,6 @@
 use std::fmt;
 
+use anyhow::anyhow;
 use serde::Deserialize;
 
 // 1. Enum phụ đại diện cho Họ Instance (Family)
@@ -227,6 +228,92 @@ impl Ec2InstanceType {
     }
 }
 
+impl std::str::FromStr for Ec2InstanceType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let normalized = s.trim().to_ascii_lowercase();
+        let mut parts = normalized.split('.');
+
+        let family = parts.next().ok_or_else(|| anyhow!("invalid instance type: {s}"))?;
+        let size = parts.next().ok_or_else(|| anyhow!("invalid instance type: {s}"))?;
+
+        if parts.next().is_some() {
+            return Err(anyhow!("invalid instance type: {s}"));
+        }
+
+        match (family, size) {
+            ("t3", "nano") => Ok(Self::T3Nano),
+            ("t3", "micro") => Ok(Self::T3Micro),
+            ("t3", "small") => Ok(Self::T3Small),
+            ("t3", "medium") => Ok(Self::T3Medium),
+            ("t3", "large") => Ok(Self::T3Large),
+            ("t3", "xlarge") => Ok(Self::T3XLarge),
+            ("t3", "2xlarge") => Ok(Self::T3_2XLarge),
+
+            ("t4g", "nano") => Ok(Self::T4gNano),
+            ("t4g", "micro") => Ok(Self::T4gMicro),
+            ("t4g", "small") => Ok(Self::T4gSmall),
+            ("t4g", "medium") => Ok(Self::T4gMedium),
+            ("t4g", "large") => Ok(Self::T4gLarge),
+            ("t4g", "xlarge") => Ok(Self::T4gXLarge),
+            ("t4g", "2xlarge") => Ok(Self::T4g_2XLarge),
+
+            ("m5", "large") => Ok(Self::M5Large),
+            ("m5", "xlarge") => Ok(Self::M5XLarge),
+            ("m5", "2xlarge") => Ok(Self::M5_2XLarge),
+            ("m5", "4xlarge") => Ok(Self::M5_4XLarge),
+            ("m5", "8xlarge") => Ok(Self::M5_8XLarge),
+            ("m5", "12xlarge") => Ok(Self::M5_12XLarge),
+            ("m5", "16xlarge") => Ok(Self::M5_16XLarge),
+            ("m5", "24xlarge") => Ok(Self::M5_24XLarge),
+
+            ("m6g", "large") => Ok(Self::M6gLarge),
+            ("m6g", "xlarge") => Ok(Self::M6gXLarge),
+            ("m6g", "2xlarge") => Ok(Self::M6g_2XLarge),
+            ("m6g", "4xlarge") => Ok(Self::M6g_4XLarge),
+
+            ("c5", "large") => Ok(Self::C5Large),
+            ("c5", "xlarge") => Ok(Self::C5XLarge),
+            ("c5", "2xlarge") => Ok(Self::C5_2XLarge),
+            ("c5", "4xlarge") => Ok(Self::C5_4XLarge),
+            ("c5", "9xlarge") => Ok(Self::C5_9XLarge),
+            ("c5", "12xlarge") => Ok(Self::C5_12XLarge),
+            ("c5", "18xlarge") => Ok(Self::C5_18XLarge),
+            ("c5", "24xlarge") => Ok(Self::C5_24XLarge),
+
+            ("c6g", "large") => Ok(Self::C6gLarge),
+            ("c6g", "xlarge") => Ok(Self::C6gXLarge),
+            ("c6g", "2xlarge") => Ok(Self::C6g_2XLarge),
+
+            ("r5", "large") => Ok(Self::R5Large),
+            ("r5", "xlarge") => Ok(Self::R5XLarge),
+            ("r5", "2xlarge") => Ok(Self::R5_2XLarge),
+            ("r5", "4xlarge") => Ok(Self::R5_4XLarge),
+            ("r5", "8xlarge") => Ok(Self::R5_8XLarge),
+            ("r5", "12xlarge") => Ok(Self::R5_12XLarge),
+            ("r5", "24xlarge") => Ok(Self::R5_24XLarge),
+
+            ("r6g", "large") => Ok(Self::R6gLarge),
+            ("r6g", "xlarge") => Ok(Self::R6gXLarge),
+            ("r6g", "2xlarge") => Ok(Self::R6g_2XLarge),
+
+            ("i3", "large") => Ok(Self::I3Large),
+            ("i3", "xlarge") => Ok(Self::I3XLarge),
+            ("i3", "2xlarge") => Ok(Self::I3_2XLarge),
+            ("i3", "4xlarge") => Ok(Self::I3_4XLarge),
+
+            ("g5", "xlarge") => Ok(Self::G5XLarge),
+            ("g5", "2xlarge") => Ok(Self::G5_2XLarge),
+            ("g5", "4xlarge") => Ok(Self::G5_4XLarge),
+
+            ("p3", "2xlarge") => Ok(Self::P3_2XLarge),
+
+            _ => Err(anyhow!("unsupported instance type: {s}")),
+        }
+    }
+}
+
 impl fmt::Display for Ec2InstanceType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (family, size) = self.details();
@@ -263,5 +350,18 @@ impl fmt::Display for Ec2InstanceType {
         };
 
         write!(f, "{}.{}", family_str, size_str)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Ec2InstanceType;
+    use std::str::FromStr;
+
+    #[test]
+    fn parses_display_format() {
+        assert_eq!(Ec2InstanceType::from_str("t3.large").unwrap(), Ec2InstanceType::T3Large);
+        assert_eq!(Ec2InstanceType::from_str("m5.2xlarge").unwrap(), Ec2InstanceType::M5_2XLarge);
+        assert_eq!(Ec2InstanceType::from_str("c6g.xlarge").unwrap(), Ec2InstanceType::C6gXLarge);
     }
 }

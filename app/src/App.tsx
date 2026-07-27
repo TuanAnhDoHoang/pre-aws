@@ -294,6 +294,7 @@ export default function App() {
               nodes={displayedNodes}
               isPlaying={isPlaying}
               onClose={() => setOpenMonitor(false)}
+              region={region}
             />
           )}
         </div>
@@ -349,6 +350,7 @@ export default function App() {
         nodes={displayedNodes}
         isOpen={isCostModalOpen}
         onClose={() => setIsCostModalOpen(false)}
+        region={region}
       />
     </div>
   );
