@@ -211,11 +211,23 @@ export async function fetchServicePrice(payload: ServicePricePayload): Promise<S
   }
 
   if (serviceType === 's3') {
-    const finalPrice = Number((0.023 * mult).toFixed(3));
+    const response = await axios.post('http://localhost:5000/price', {
+      region,
+      service: 'S3',
+      options: {
+        S3: {
+          storage_type: properties.storage_type || 'standard',
+          usage_type: properties.usage_type || '50TBM',
+        },
+      },
+    });
+
+    const price = response.data.price;
+    const uom = response.data.uom;
     return {
-      price: finalPrice,
-      unit: 'USD/GB/tháng',
-      display: `$${finalPrice} USD/GB/tháng`,
+      price,
+      unit: uom,
+      display: `$${price} ${uom}`,
       payloadSent: payload,
     };
   }

@@ -84,8 +84,11 @@ mod tests {
     #[test]
     fn parses_usage_type() {
         assert_eq!(S3UsageType::from_str("50tbm").unwrap(), S3UsageType::_50TBM);
+        assert_eq!(S3UsageType::from_str("50TBM").unwrap(), S3UsageType::_50TBM);
         assert_eq!(S3UsageType::from_str("500tb").unwrap(), S3UsageType::_500TBM);
+        assert_eq!(S3UsageType::from_str("1000tbm").unwrap(), S3UsageType::_1000TBM);
+        assert_eq!(S3UsageType::from_str("1000TBM").unwrap(), S3UsageType::_1000TBM);
         assert_eq!(S3UsageType::from_str("1000-tbm").unwrap(), S3UsageType::_1000TBM);
-        assert_eq!(S3UsageType::_1000TBM.to_string(), "1000tbm");
+        assert_eq!(S3UsageType::_1000TBM.to_string(), "1000TBM");
     }
 }

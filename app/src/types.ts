@@ -71,6 +71,8 @@ export const SERVICE_DEFINITIONS: Record<ServiceType, ServiceDefinition> = {
       bucket_name: 'my-app-assets-bucket',
       acl: 'private',
       versioning: true,
+      storage_type: 'standard',
+      usage_type: '50TBM',
     },
   },
   ebs: {
@@ -93,7 +95,7 @@ export const SERVICE_DEFINITIONS: Record<ServiceType, ServiceDefinition> = {
     defaultProperties: {
       allocated_storage: 20,
       engine: 'mysql',
-      instance_class: 'db.t3.micro',
+      instance_type: 'db.t3.micro',
       deployment_type: 'single',
       name: 'maindb',
       username: 'admin',

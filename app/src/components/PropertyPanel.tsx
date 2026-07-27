@@ -639,6 +639,34 @@ export default function PropertyPanel({
                   className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                    Storage type
+                  </label>
+                  <select
+                    value={props.storage_type || 'standard'}
+                    onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, storage_type: e.target.value })}
+                    className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+                  >
+                    <option value="standard">Standard</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                    Usage type
+                  </label>
+                  <select
+                    value={props.usage_type || '50TBM'}
+                    onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, usage_type: e.target.value })}
+                    className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+                  >
+                    <option value="50TBM">50TBM</option>
+                    <option value="500TBM">500TBM</option>
+                    <option value="1000TBM">1000TBM</option>
+                  </select>
+                </div>
+              </div>
               <div className="flex items-center gap-4 py-1">
                 <label className="flex items-center gap-2 text-xs font-bold text-on-surface cursor-pointer">
                   <input

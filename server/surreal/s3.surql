@@ -26,7 +26,7 @@ DEFINE FIELD OVERWRITE region ON TABLE s3_pricing
     ];
 
 -- Loại lưu trữ S3 (S3 Storage Class)
-DEFINE FIELD OVERWRITE s3_type ON TABLE s3_pricing 
+DEFINE FIELD OVERWRITE storage_type ON TABLE s3_pricing 
     TYPE string 
     ASSERT $value INSIDE ["standard", "intelligent-tiering", "standard-ia", "onezone-ia", "glacier-instant", "glacier-flexible", "glacier-deep-archive"];
 

@@ -37,6 +37,7 @@ pub enum UOM {
     #[default]
     Hour,
     Month,
+    GB,
 }
 impl FromStr for UOM {
     type Err = anyhow::Error;
@@ -46,6 +47,7 @@ impl FromStr for UOM {
             "hour" | "hrs" | "hr" | "h" => Ok(UOM::Hour),
             "second" | "sec" | "s" => Ok(UOM::Second),
             "month" | "mo" | "m" => Ok(UOM::Month),
+            "gb" | "gib" | "gigabyte" => Ok(UOM::GB),
             _ => Err(anyhow!("Error during parsing unit of price")),
         }
     }
@@ -80,7 +82,7 @@ pub async fn fetch(
             };
             get_rds_price(db, &region, &rds_options).await.context("Error during get RDS pricing")
         }
-        (Service::RDS, ServiceOptionRequest::S3(s3_options_req)) => {
+        (Service::S3, ServiceOptionRequest::S3(s3_options_req)) => {
             let s3_storage_type = S3StorageType::from_str(&s3_options_req.storage_type)?;
             let s3_usage_type = S3UsageType::from_str(&s3_options_req.usage_type)?;
             let s3_options = S3Option{
@@ -137,7 +139,7 @@ async fn get_rds_price(
 ) -> anyhow::Result<(f64, UOM)> {
     println!("=============After=============");
     println!("region {:?}", &region.to_str());
-    println!("ec2_option: {:?}", &options.instance_type.to_string());
+    println!("rds_option: {:?}", &options.instance_type.to_string());
 
     let mut response = db
         .query("select price, uom from rds_pricing where region=$r and engine=$e and instance_type=$i and deployment_type=$d")
@@ -170,28 +172,28 @@ async fn get_s3_price(
 ) -> anyhow::Result<(f64, UOM)>{
     println!("=============After=============");
     println!("region {:?}", &region.to_str());
-    println!("ec2_option: {:?}", &options.storage_type.to_string());
-    println!("ec2_option: {:?}", &options.usage_type.to_string());
+    println!("s3_option: {:?}", &options.storage_type.to_string());
+    println!("s3_option: {:?}", &options.usage_type.to_string());
 
     let mut response = db
         .query("select price, uom from s3_pricing where region=$r and storage_type=$s and usage_type=$u")
         .bind(("r", region.to_str()))
         .bind(("s", options.storage_type.as_str()))
         .bind(("u", options.usage_type.as_str()))
-        .await?;
+        .await.context("Error during query s3 price")?;
 
-    let records: Vec<PriceResponse> = response.take(0)?;
+    let records: Vec<PriceResponse> = response.take(0).context("Error during take response")?;
     // Lấy bản ghi đầu tiên nếu tìm thấy, nếu không trả về lỗi
     let price_record = records.into_iter().next().ok_or_else(|| {
         anyhow::anyhow!(
-            "Không tìm thấy giá cho region '{}' và instance_type '{}' và deployment_type '{}'",
+            "Không tìm thấy giá cho region '{}' và storage_type '{}' và usage_type '{}'",
             region.to_str(),
             options.storage_type.as_str(),
             options.usage_type.as_str()
         )
     })?;
 
-    let uom = UOM::from_str(&price_record.uom)?;
+    let uom = UOM::from_str(&price_record.uom).context("Error during parse unit of price")?;
 
     Ok((price_record.price, uom))
 }
