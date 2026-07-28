@@ -17,7 +17,7 @@ export const PRESET_PATTERNS: DesignPattern[] = [
     nodes: [
       {
         id: 'bg-alb',
-        type: 'tg',
+        type: 'elb',
         name: 'Application Load Balancer',
         x: 400,
         y: 80,
@@ -31,7 +31,7 @@ export const PRESET_PATTERNS: DesignPattern[] = [
       },
       {
         id: 'bg-tg-blue',
-        type: 'tg',
+        type: 'elb',
         name: 'TG-Alpha (Blue Group)',
         x: 280,
         y: 190,
@@ -45,7 +45,7 @@ export const PRESET_PATTERNS: DesignPattern[] = [
       },
       {
         id: 'bg-tg-green',
-        type: 'tg',
+        type: 'elb',
         name: 'TG-Beta (Green Group)',
         x: 520,
         y: 190,

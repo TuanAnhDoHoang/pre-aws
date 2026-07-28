@@ -13,7 +13,7 @@ export function sanitizeTerraformName(name: string): string {
 export const INITIAL_NODES: CloudNode[] = [
   {
     id: 'node_elb',
-    type: 'tg', // Represents the ELB
+    type: 'elb', // Represents the ELB
     name: 'ELB',
     x: 400,
     y: 100,
@@ -27,7 +27,7 @@ export const INITIAL_NODES: CloudNode[] = [
   },
   {
     id: 'node_tg_alpha',
-    type: 'tg',
+    type: 'elb',
     name: 'TG-Alpha',
     x: 350,
     y: 190,
@@ -41,7 +41,7 @@ export const INITIAL_NODES: CloudNode[] = [
   },
   {
     id: 'node_tg_beta',
-    type: 'tg',
+    type: 'elb',
     name: 'TG-Beta',
     x: 450,
     y: 190,
@@ -243,7 +243,7 @@ export async function fetchServicePrice(payload: ServicePricePayload): Promise<S
     };
   }
 
-  if (serviceType === 'tg') {
+  if (serviceType === 'elb') {
     try {
       const elbType = properties.elb_type || 'ALB';
       const locationType = properties.location_type || 'region';
@@ -368,7 +368,7 @@ export function calculateNodeCost(node: CloudNode, region: string = 'ap-southeas
     return { hourly: totalHourly, unit: 'USD/giờ', display: `$${totalHourly} USD/giờ` };
   }
 
-  if (node.type === 'tg') {
+  if (node.type === 'elb') {
     const rate = Number((PRICE_CATALOG['elb'].hourly * mult).toFixed(4));
     return { hourly: rate, unit: 'USD/giờ', display: `$${rate} USD/giờ` };
   }
@@ -433,7 +433,7 @@ export function generateNodeHCL(node: CloudNode): string {
   skip_final_snapshot  = true
 }`;
 
-    case 'tg':
+    case 'elb':
       // Check if it's the main ELB or a standard target group
       if (node.name.toLowerCase().includes('elb')) {
         return `resource "aws_lb" "${tfId}" {
@@ -578,7 +578,7 @@ export function generateFullTerraform(nodes: CloudNode[], connections: Connectio
 
   // Write load balancer target attachments if connections exist
   const instances = nodes.filter((n) => n.type === 'compute');
-  const targetGroups = nodes.filter((n) => n.type === 'tg' && !n.name.toLowerCase().includes('elb'));
+  const targetGroups = nodes.filter((n) => n.type === 'elb' && !n.name.toLowerCase().includes('elb'));
 
   // Connect target groups to instances based on canvas connections
   connections.forEach((conn) => {
@@ -587,7 +587,7 @@ export function generateFullTerraform(nodes: CloudNode[], connections: Connectio
 
     if (fromNode && toNode) {
       // If connecting a target group to an instance
-      if (fromNode.type === 'tg' && !fromNode.name.toLowerCase().includes('elb') && toNode.type === 'compute') {
+      if (fromNode.type === 'elb' && !fromNode.name.toLowerCase().includes('elb') && toNode.type === 'compute') {
         const tgId = sanitizeTerraformName(fromNode.name);
         const instId = sanitizeTerraformName(toNode.name);
         output += `resource "aws_lb_target_group_attachment" "attach_${tgId}_to_${instId}" {

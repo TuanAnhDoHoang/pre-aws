@@ -29,7 +29,7 @@ export default function SidebarLeft({
     Compute: ['compute', 'lambda'],
     Storage: ['s3', 'ebs'],
     Database: ['rds', 'dynamodb'],
-    Networking: ['vpc', 'cloudfront', 'tg'],
+    Networking: ['vpc', 'cloudfront', 'elb'],
   };
 
   const handleDragStart = (e: React.DragEvent, type: ServiceType) => {
@@ -137,7 +137,7 @@ export default function SidebarLeft({
                             {def.label}
                           </p>
                           <p className="text-[10px] font-serif italic text-on-surface-variant/80 whitespace-nowrap truncate">
-                            aws_{type === 'tg' ? 'lb_target_group' : type === 'compute' ? 'instance' : type === 'rds' ? 'db_instance' : type}
+                            aws_{type === 'elb' ? 'lb_target_group' : type === 'compute' ? 'instance' : type === 'rds' ? 'db_instance' : type}
                           </p>
                         </div>
                       </div>

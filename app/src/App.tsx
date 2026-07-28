@@ -6,12 +6,11 @@ import CostMonitor from './components/CostMonitor';
 import CostEstimateModal from './components/CostEstimateModal';
 import Footer from './components/Footer';
 import { CloudNode, Connection, ServiceType, SERVICE_DEFINITIONS } from './types';
-import { INITIAL_NODES, INITIAL_CONNECTIONS } from './utils';
 import { DesignPattern } from './patterns';
 
 export default function App() {
-  const [nodes, setNodes] = useState<CloudNode[]>(INITIAL_NODES);
-  const [connections, setConnections] = useState<Connection[]>(INITIAL_CONNECTIONS);
+  const [nodes, setNodes] = useState<CloudNode[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   
   // Design Pattern State

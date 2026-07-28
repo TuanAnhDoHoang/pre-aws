@@ -169,7 +169,7 @@ export default function AwsIcon({ type, className = "w-10 h-10" }: AwsIconProps)
         </svg>
       );
 
-    case 'tg': // ELB Target Group
+    case 'elb': // ELB Target Group
       return (
         <svg viewBox="0 0 100 100" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
           {/* Background Blue-Slate */}

@@ -65,12 +65,53 @@ const SERVICE_DESCRIPTIONS: Record<ServiceType, { desc: string; detail: string; 
     detail: 'Dịch vụ phân phối nội dung nhanh chóng, bảo mật cao để phân phối tệp, video và ứng dụng đến người dùng cuối.',
     useCases: ['Tăng tốc tải trang web tĩnh', 'Phân phối nội dung đa phương tiện', 'Bộ nhớ đệm ở vùng biên toàn cầu'],
   },
-  tg: {
+  elb: {
     desc: 'Nhóm mục tiêu định tuyến lưu lượng (Target Group).',
     detail: 'Sử dụng để định tuyến yêu cầu từ bộ cân bằng tải Application Load Balancer tới các mục tiêu đã đăng ký.',
     useCases: ['Cân bằng tải cho nhóm EC2', 'Kiểm tra sức khỏe (Health Check) thiết bị', 'Định tuyến lưu lượng theo đường dẫn'],
   },
 };
+
+const ELB_TYPES = ['ALB', 'NLB', 'GWLB', 'CLB'] as const;
+const ELB_LOCATION_TYPES = ['region', 'wave-length', 'local-zone'] as const;
+const ELB_LOCATION_CODES: Record<string, string[]> = {
+  'wave-length': ['ap-northeast-1-wl1-tyo1', 'ap-northeast-1-wl1-osa1'],
+  'local-zone': ['ap-southeast-1-han-1a', 'ap-southeast-1-bkk-1a'],
+};
+const COMPUTE_INSTANCE_TYPES = [
+  't4g.nano', 't4g.micro', 't4g.small', 't4g.medium', 't4g.large', 't4g.xlarge', 't4g.2xlarge',
+  't3.nano', 't3.micro', 't3.small', 't3.medium', 't3.large', 't3.xlarge', 't3.2xlarge',
+  't3a.nano', 't3a.micro', 't3a.small', 't3a.medium', 't3a.large', 't3a.xlarge',
+] as const;
+const RDS_ENGINES = ['mysql', 'postgres'] as const;
+const RDS_INSTANCE_TYPES = [
+  'db.t4g.micro', 'db.t4g.small', 'db.t4g.medium', 'db.t4g.large', 'db.t4g.xlarge', 'db.t4g.2xlarge',
+  'db.t3.micro', 'db.t3.small', 'db.t3.medium', 'db.t3.large', 'db.t3.xlarge', 'db.t3.2xlarge',
+  'db.m8g.large', 'db.m8g.xlarge', 'db.m8g.2xlarge', 'db.m8g.4xlarge', 'db.m8g.8xlarge', 'db.m8g.12xlarge',
+  'db.m8g.16xlarge', 'db.m8g.24xlarge', 'db.m8g.48xlarge',
+  'db.m7g.large', 'db.m7g.xlarge', 'db.m7g.2xlarge', 'db.m7g.4xlarge', 'db.m7g.8xlarge', 'db.m7g.12xlarge',
+  'db.m7g.16xlarge',
+  'db.m7i.large', 'db.m7i.xlarge', 'db.m7i.2xlarge', 'db.m7i.4xlarge', 'db.m7i.8xlarge', 'db.m7i.12xlarge',
+  'db.m7i.16xlarge', 'db.m7i.24xlarge', 'db.m7i.48xlarge',
+  'db.m6g.large', 'db.m6g.xlarge', 'db.m6g.2xlarge', 'db.m6g.4xlarge', 'db.m6g.8xlarge', 'db.m6g.12xlarge',
+  'db.m6g.16xlarge',
+  'db.m6gd.large', 'db.m6gd.xlarge', 'db.m6gd.2xlarge', 'db.m6gd.4xlarge', 'db.m6gd.8xlarge', 'db.m6gd.12xlarge',
+  'db.m6gd.16xlarge',
+  'db.m6i.large', 'db.m6i.xlarge', 'db.m6i.2xlarge', 'db.m6i.4xlarge', 'db.m6i.8xlarge', 'db.m6i.12xlarge',
+  'db.m6i.16xlarge', 'db.m6i.24xlarge', 'db.m6i.32xlarge',
+  'db.m5.large', 'db.m5.xlarge', 'db.m5.2xlarge', 'db.m5.4xlarge', 'db.m5.8xlarge', 'db.m5.12xlarge',
+  'db.m5.16xlarge', 'db.m5.24xlarge',
+  'db.m5d.large', 'db.m5d.xlarge', 'db.m5d.2xlarge', 'db.m5d.4xlarge', 'db.m5d.8xlarge', 'db.m5d.12xlarge',
+  'db.m5d.16xlarge', 'db.m5d.24xlarge',
+] as const;
+const RDS_DEPLOYMENT_TYPES = ['single', 'multi-az'] as const;
+const S3_USAGE_TYPES = ['50TBM', '500TBM', '1000TBM'] as const;
+const S3_STORAGE_TYPES = ['standard'] as const;
+const EBS_VOLUME_TYPES = ['gp3', 'gp2', 'io2'] as const;
+const LAMBDA_RUNTIMES = ['nodejs18.x', 'python3.9', 'go1.x'] as const;
+const LAMBDA_MEMORY_SIZES = [128, 512, 1024, 2048] as const;
+const TARGET_PROTOCOLS = ['HTTP', 'HTTPS', 'TCP'] as const;
+
 
 export default function PropertyPanel({
   selectedNode,
@@ -295,7 +336,7 @@ export default function PropertyPanel({
               {def.label}
             </h3>
             <p className="text-[10px] font-mono text-[#F27D26] font-semibold">
-              aws_{selectedServiceType === 'tg' ? 'lb_target_group' : selectedServiceType === 'compute' ? 'instance' : selectedServiceType === 'rds' ? 'db_instance' : selectedServiceType}
+              aws_{selectedServiceType === 'elb' ? 'lb_target_group' : selectedServiceType === 'compute' ? 'instance' : selectedServiceType === 'rds' ? 'db_instance' : selectedServiceType}
             </p>
           </div>
 
@@ -364,7 +405,6 @@ export default function PropertyPanel({
 
     const def = SERVICE_DEFINITIONS[selectedNode.type];
     const props = selectedNode.properties || {};
-    const isElbNode = selectedNode.type === 'tg' && selectedNode.name.toLowerCase().includes('elb');
     const elbType = props.elb_type || 'ALB';
     const locationType = props.location_type || 'region';
     const locationCode = props.location_code || '';
@@ -444,26 +484,9 @@ export default function PropertyPanel({
                 onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, instance_type: e.target.value })}
                 className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
               >
-                <option value="t4g.nano">t4g.nano</option>
-                <option value="t4g.micro">t4g.micro</option>
-                <option value="t4g.small">t4g.small</option>
-                <option value="t4g.medium">t4g.medium</option>
-                <option value="t4g.large">t4g.large</option>
-                <option value="t4g.xlarge">t4g.xlarge</option>
-                <option value="t4g.2xlarge">t4g.2xlarge</option>
-                <option value="t3.nano">t3.nano</option>
-                <option value="t3.micro">t3.micro</option>
-                <option value="t3.small">t3.small</option>
-                <option value="t3.medium">t3.medium</option>
-                <option value="t3.large">t3.large</option>
-                <option value="t3.xlarge">t3.xlarge</option>
-                <option value="t3.2xlarge">t3.2xlarge</option>
-                <option value="t3a.nano">t3a.nano</option>
-                <option value="t3a.micro">t3a.micro</option>
-                <option value="t3a.small">t3a.small</option>
-                <option value="t3a.medium">t3a.medium</option>
-                <option value="t3a.large">t3a.large</option>
-                <option value="t3a.xlarge">t3a.xlarge</option>
+                {COMPUTE_INSTANCE_TYPES.map((instanceType) => (
+                  <option key={instanceType} value={instanceType}>{instanceType}</option>
+                ))}
               </select>
             </div>
           )}
@@ -482,8 +505,9 @@ export default function PropertyPanel({
                     onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, engine: e.target.value })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
-                    <option value="mysql">MySQL</option>
-                    <option value="postgres">PostgreSQL</option>
+                    {RDS_ENGINES.map((engine) => (
+                      <option key={engine} value={engine}>{engine === 'postgres' ? 'PostgreSQL' : 'MySQL'}</option>
+                    ))}
                   </select>
                 </div>
                 {/* <div>
@@ -510,82 +534,9 @@ export default function PropertyPanel({
                     onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, instance_type: e.target.value })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
-                    <option value="db.t4g.micro">db.t4g.micro</option>
-                    <option value="db.t4g.small">db.t4g.small</option>
-                    <option value="db.t4g.medium">db.t4g.medium</option>
-                    <option value="db.t4g.large">db.t4g.large</option>
-                    <option value="db.t4g.xlarge">db.t4g.xlarge</option>
-                    <option value="db.t4g.2xlarge">db.t4g.2xlarge</option>
-                    <option value="db.t3.micro">db.t3.micro</option>
-                    <option value="db.t3.small">db.t3.small</option>
-                    <option value="db.t3.medium">db.t3.medium</option>
-                    <option value="db.t3.large">db.t3.large</option>
-                    <option value="db.t3.xlarge">db.t3.xlarge</option>
-                    <option value="db.t3.2xlarge">db.t3.2xlarge</option>
-                    <option value="db.m8g.large">db.m8g.large</option>
-                    <option value="db.m8g.xlarge">db.m8g.xlarge</option>
-                    <option value="db.m8g.2xlarge">db.m8g.2xlarge</option>
-                    <option value="db.m8g.4xlarge">db.m8g.4xlarge</option>
-                    <option value="db.m8g.8xlarge">db.m8g.8xlarge</option>
-                    <option value="db.m8g.12xlarge">db.m8g.12xlarge</option>
-                    <option value="db.m8g.16xlarge">db.m8g.16xlarge</option>
-                    <option value="db.m8g.24xlarge">db.m8g.24xlarge</option>
-                    <option value="db.m8g.48xlarge">db.m8g.48xlarge</option>
-                    <option value="db.m7g.large">db.m7g.large</option>
-                    <option value="db.m7g.xlarge">db.m7g.xlarge</option>
-                    <option value="db.m7g.2xlarge">db.m7g.2xlarge</option>
-                    <option value="db.m7g.4xlarge">db.m7g.4xlarge</option>
-                    <option value="db.m7g.8xlarge">db.m7g.8xlarge</option>
-                    <option value="db.m7g.12xlarge">db.m7g.12xlarge</option>
-                    <option value="db.m7g.16xlarge">db.m7g.16xlarge</option>
-                    <option value="db.m7i.large">db.m7i.large</option>
-                    <option value="db.m7i.xlarge">db.m7i.xlarge</option>
-                    <option value="db.m7i.2xlarge">db.m7i.2xlarge</option>
-                    <option value="db.m7i.4xlarge">db.m7i.4xlarge</option>
-                    <option value="db.m7i.8xlarge">db.m7i.8xlarge</option>
-                    <option value="db.m7i.12xlarge">db.m7i.12xlarge</option>
-                    <option value="db.m7i.16xlarge">db.m7i.16xlarge</option>
-                    <option value="db.m7i.24xlarge">db.m7i.24xlarge</option>
-                    <option value="db.m7i.48xlarge">db.m7i.48xlarge</option>
-                    <option value="db.m6g.large">db.m6g.large</option>
-                    <option value="db.m6g.xlarge">db.m6g.xlarge</option>
-                    <option value="db.m6g.2xlarge">db.m6g.2xlarge</option>
-                    <option value="db.m6g.4xlarge">db.m6g.4xlarge</option>
-                    <option value="db.m6g.8xlarge">db.m6g.8xlarge</option>
-                    <option value="db.m6g.12xlarge">db.m6g.12xlarge</option>
-                    <option value="db.m6g.16xlarge">db.m6g.16xlarge</option>
-                    <option value="db.m6gd.large">db.m6gd.large</option>
-                    <option value="db.m6gd.xlarge">db.m6gd.xlarge</option>
-                    <option value="db.m6gd.2xlarge">db.m6gd.2xlarge</option>
-                    <option value="db.m6gd.4xlarge">db.m6gd.4xlarge</option>
-                    <option value="db.m6gd.8xlarge">db.m6gd.8xlarge</option>
-                    <option value="db.m6gd.12xlarge">db.m6gd.12xlarge</option>
-                    <option value="db.m6gd.16xlarge">db.m6gd.16xlarge</option>
-                    <option value="db.m6i.large">db.m6i.large</option>
-                    <option value="db.m6i.xlarge">db.m6i.xlarge</option>
-                    <option value="db.m6i.2xlarge">db.m6i.2xlarge</option>
-                    <option value="db.m6i.4xlarge">db.m6i.4xlarge</option>
-                    <option value="db.m6i.8xlarge">db.m6i.8xlarge</option>
-                    <option value="db.m6i.12xlarge">db.m6i.12xlarge</option>
-                    <option value="db.m6i.16xlarge">db.m6i.16xlarge</option>
-                    <option value="db.m6i.24xlarge">db.m6i.24xlarge</option>
-                    <option value="db.m6i.32xlarge">db.m6i.32xlarge</option>
-                    <option value="db.m5.large">db.m5.large</option>
-                    <option value="db.m5.xlarge">db.m5.xlarge</option>
-                    <option value="db.m5.2xlarge">db.m5.2xlarge</option>
-                    <option value="db.m5.4xlarge">db.m5.4xlarge</option>
-                    <option value="db.m5.8xlarge">db.m5.8xlarge</option>
-                    <option value="db.m5.12xlarge">db.m5.12xlarge</option>
-                    <option value="db.m5.16xlarge">db.m5.16xlarge</option>
-                    <option value="db.m5.24xlarge">db.m5.24xlarge</option>
-                    <option value="db.m5d.large">db.m5d.large</option>
-                    <option value="db.m5d.xlarge">db.m5d.xlarge</option>
-                    <option value="db.m5d.2xlarge">db.m5d.2xlarge</option>
-                    <option value="db.m5d.4xlarge">db.m5d.4xlarge</option>
-                    <option value="db.m5d.8xlarge">db.m5d.8xlarge</option>
-                    <option value="db.m5d.12xlarge">db.m5d.12xlarge</option>
-                    <option value="db.m5d.16xlarge">db.m5d.16xlarge</option>
-                    <option value="db.m5d.24xlarge">db.m5d.24xlarge</option>
+                    {RDS_INSTANCE_TYPES.map((instanceType) => (
+                      <option key={instanceType} value={instanceType}>{instanceType}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -597,8 +548,9 @@ export default function PropertyPanel({
                     onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, deployment_type: e.target.value })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
-                    <option value="single">Single-AZ</option>
-                    <option value="multi-az">Multi-AZ</option>
+                    {RDS_DEPLOYMENT_TYPES.map((type) => (
+                      <option key={type} value={type}>{type === 'single' ? 'Single-AZ' : 'Multi-AZ'}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -653,7 +605,9 @@ export default function PropertyPanel({
                     onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, storage_type: e.target.value })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
-                    <option value="standard">Standard</option>
+                    {S3_STORAGE_TYPES.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -665,9 +619,9 @@ export default function PropertyPanel({
                     onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, usage_type: e.target.value })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
-                    <option value="50TBM">50TBM</option>
-                    <option value="500TBM">500TBM</option>
-                    <option value="1000TBM">1000TBM</option>
+                    {S3_USAGE_TYPES.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -710,9 +664,9 @@ export default function PropertyPanel({
                   onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, volume_type: e.target.value })}
                   className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                 >
-                  <option value="gp3">gp3 (SSD)</option>
-                  <option value="gp2">gp2 (SSD)</option>
-                  <option value="io2">io2 (SSD Provisioned)</option>
+                  {EBS_VOLUME_TYPES.map((type) => (
+                    <option key={type} value={type}>{type === 'gp3' ? 'gp3 (SSD)' : type === 'gp2' ? 'gp2 (SSD)' : 'io2 (SSD Provisioned)'}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -747,7 +701,7 @@ export default function PropertyPanel({
           )}
 
           {/* ELB Fields */}
-          {isElbNode && (
+          {selectedNode.type === 'elb'  && (
             <div className="space-y-2 border border-[#141414] bg-white p-3 rounded-none">
               <div>
                 <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
@@ -766,10 +720,9 @@ export default function PropertyPanel({
                   }}
                   className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                 >
-                  <option value="ALB">ALB</option>
-                  <option value="NLB">NLB</option>
-                  <option value="GWLB">GWLB</option>
-                  <option value="CLB">CLB</option>
+                  {ELB_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
                 </select>
               </div>
 
@@ -786,9 +739,9 @@ export default function PropertyPanel({
                     })}
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
-                    <option value="region">region</option>
-                    <option value="wave-length">wave-length</option>
-                    <option value="local-zone">local-zone</option>
+                    {ELB_LOCATION_TYPES.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
                   </select>
                 ) : (
                   <div className="w-full bg-[#E4E3E0] border border-[#141414] px-2 py-1.5 text-xs text-on-surface">
@@ -811,18 +764,9 @@ export default function PropertyPanel({
                     className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                   >
                     <option value="">-- Chọn location code --</option>
-                    {locationType === 'wave-length' && (
-                      <>
-                        <option value="ap-northeast-1-wl1-tyo1">ap-northeast-1-wl1-tyo1</option>
-                        <option value="ap-northeast-1-wl1-osa1">ap-northeast-1-wl1-osa1</option>
-                      </>
-                    )}
-                    {locationType === 'local-zone' && (
-                      <>
-                        <option value="ap-southeast-1-han-1a">ap-southeast-1-han-1a</option>
-                        <option value="ap-southeast-1-bkk-1a">ap-southeast-1-bkk-1a</option>
-                      </>
-                    )}
+                    {(ELB_LOCATION_CODES[locationType] || []).map((code) => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -830,7 +774,7 @@ export default function PropertyPanel({
           )}
 
           {/* Target Group Fields */}
-          {selectedNode.type === 'tg' && !selectedNode.name.toLowerCase().includes('elb') && (
+          {selectedNode.type === 'elb' && !selectedNode.name.toLowerCase().includes('elb') && (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
@@ -854,9 +798,9 @@ export default function PropertyPanel({
                   onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, protocol: e.target.value })}
                   className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                 >
-                  <option value="HTTP">HTTP</option>
-                  <option value="HTTPS">HTTPS</option>
-                  <option value="TCP">TCP</option>
+                  {TARGET_PROTOCOLS.map((protocol) => (
+                    <option key={protocol} value={protocol}>{protocol}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -889,9 +833,9 @@ export default function PropertyPanel({
                   onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, runtime: e.target.value })}
                   className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                 >
-                  <option value="nodejs18.x">NodeJS 18.x</option>
-                  <option value="python3.9">Python 3.9</option>
-                  <option value="go1.x">Go 1.x</option>
+                  {LAMBDA_RUNTIMES.map((runtime) => (
+                    <option key={runtime} value={runtime}>{runtime === 'nodejs18.x' ? 'NodeJS 18.x' : runtime === 'python3.9' ? 'Python 3.9' : 'Go 1.x'}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -903,10 +847,9 @@ export default function PropertyPanel({
                   onChange={(e) => onUpdateNodeProperties(selectedNode.id, { ...props, memory_size: parseInt(e.target.value) || 512 })}
                   className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
                 >
-                  <option value="128">128 MB</option>
-                  <option value="512">512 MB</option>
-                  <option value="1024">1024 MB</option>
-                  <option value="2048">2048 MB</option>
+                  {LAMBDA_MEMORY_SIZES.map((size) => (
+                    <option key={size} value={size}>{size} MB</option>
+                  ))}
                 </select>
               </div>
             </>

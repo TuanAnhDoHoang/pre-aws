@@ -7,7 +7,7 @@ export type ServiceType =
   | 'dynamodb'
   | 'vpc'
   | 'cloudfront'
-  | 'tg';
+  | 'elb';
 
 export interface CloudNode {
   id: string;
@@ -134,9 +134,9 @@ export const SERVICE_DEFINITIONS: Record<ServiceType, ServiceDefinition> = {
       enabled: true,
     },
   },
-  tg: {
-    type: 'tg',
-    label: 'Target Group',
+  elb: {
+    type: 'elb',
+    label: 'Load balancer',
     category: 'Networking',
     icon: 'hub',
     color: 'text-slate-600',
