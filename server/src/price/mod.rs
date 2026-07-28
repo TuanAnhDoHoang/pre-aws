@@ -5,7 +5,21 @@ use serde::{Deserialize, Serialize};
 use surrealdb::{Surreal, engine::remote::ws::Client, types::SurrealValue};
 
 use crate::service::{
-    Region, ec2::{Ec2Option, Ec2OptionRequest, types::Ec2InstanceType}, rds::{RdsOption, RdsOptionRequest, types::{RdsDeploymentType, RdsEngine, RdsInstanceType}}, s3::{S3Option, S3OptionRequest, types::{S3StorageType, S3UsageType}},
+    Region,
+    ec2::{Ec2Option, Ec2OptionRequest, types::Ec2InstanceType},
+    elb::{
+        ElbOption, ElbOptionRequest,
+        types::{ALBLocationType, ALBLocationTypeRequest, ElbType, ElbTypeRequest},
+    },
+    rds::{
+        RdsOption, RdsOptionRequest,
+        types::{RdsDeploymentType, RdsEngine, RdsInstanceType},
+    },
+    s3::{
+        S3Option, S3OptionRequest,
+        types::{S3StorageType, S3UsageType},
+    },
+    types::{AwsLocalZone, AwsWavelengthZone},
 };
 
 #[derive(Debug, Deserialize)]
@@ -13,6 +27,7 @@ pub enum Service {
     EC2,
     RDS,
     S3,
+    ELB,
 }
 
 //For logic
@@ -27,7 +42,8 @@ pub enum Service {
 pub enum ServiceOptionRequest {
     Ec2(Ec2OptionRequest),
     Rds(RdsOptionRequest),
-    S3(S3OptionRequest)
+    S3(S3OptionRequest),
+    Elb(ElbOptionRequest),
 }
 
 #[derive(Default, Deserialize, Debug, Serialize)]
@@ -75,21 +91,56 @@ pub async fn fetch(
             let rds_engine = RdsEngine::from_str(&rds_options_req.engine)?;
             let rds_instance_type = RdsInstanceType::from_str(&rds_options_req.instance_type)?;
             let rds_deploy_type = RdsDeploymentType::from_str(&rds_options_req.deployment_type)?;
-            let rds_options = RdsOption{
+            let rds_options = RdsOption {
                 engine: rds_engine,
                 instance_type: rds_instance_type,
-                deployment_type: rds_deploy_type
+                deployment_type: rds_deploy_type,
             };
-            get_rds_price(db, &region, &rds_options).await.context("Error during get RDS pricing")
+            get_rds_price(db, &region, &rds_options)
+                .await
+                .context("Error during get RDS pricing")
         }
         (Service::S3, ServiceOptionRequest::S3(s3_options_req)) => {
             let s3_storage_type = S3StorageType::from_str(&s3_options_req.storage_type)?;
             let s3_usage_type = S3UsageType::from_str(&s3_options_req.usage_type)?;
-            let s3_options = S3Option{
+            let s3_options = S3Option {
                 storage_type: s3_storage_type,
-                usage_type: s3_usage_type
+                usage_type: s3_usage_type,
             };
-            get_s3_price(db, &region, &s3_options).await.context("Error during get S3 pricing")
+            get_s3_price(db, &region, &s3_options)
+                .await
+                .context("Error during get S3 pricing")
+        }
+        (Service::ELB, ServiceOptionRequest::Elb(elb_options_req)) => {
+            let elb_type = match elb_options_req.elb_type {
+                ElbTypeRequest::ALB(location_type) => {
+                    let alb_location_type = match location_type {
+                        ALBLocationTypeRequest::AwsRegion(region) => {
+                            let region =
+                                Region::from_str(&region).context("Error during read Region")?;
+                            ALBLocationType::AwsRegion(region)
+                        }
+                        ALBLocationTypeRequest::AwsWavelengthZone(wave_length) => {
+                            let wave_length = AwsWavelengthZone::from_str(&wave_length)
+                                .context("Error during read wave length")?;
+                            ALBLocationType::AwsWavelengthZone(wave_length)
+                        }
+                        ALBLocationTypeRequest::AwsLocalZone(local_zone) => {
+                            let local_zone = AwsLocalZone::from_str(&local_zone)
+                                .context("Error during read Local Zone")?;
+                            ALBLocationType::AwsLocalZone(local_zone)
+                        }
+                    };
+                    ElbType::ALB(alb_location_type)
+                }
+                ElbTypeRequest::NLB => ElbType::NLB,
+                ElbTypeRequest::GWLB => ElbType::GWLB,
+                ElbTypeRequest::CLB => ElbType::CLB,
+            };
+            let elb_options = ElbOption { elb_type };
+            get_elb_price(db, &region, &elb_options)
+                .await
+                .context("Error during get Elb pricing")
         }
         _ => Ok((0.0, UOM::default())),
     }?;
@@ -169,7 +220,7 @@ async fn get_s3_price(
     db: &Surreal<Client>,
     region: &Region,
     options: &S3Option,
-) -> anyhow::Result<(f64, UOM)>{
+) -> anyhow::Result<(f64, UOM)> {
     println!("=============After=============");
     println!("region {:?}", &region.to_str());
     println!("s3_option: {:?}", &options.storage_type.to_string());
@@ -196,4 +247,67 @@ async fn get_s3_price(
     let uom = UOM::from_str(&price_record.uom).context("Error during parse unit of price")?;
 
     Ok((price_record.price, uom))
+}
+
+async fn get_elb_price(
+    db: &Surreal<Client>,
+    region: &Region,
+    options: &ElbOption,
+) -> anyhow::Result<(f64, UOM)> {
+    let (elb_type, location_type, location_code) = match &options.elb_type {
+        ElbType::ALB(location_type) => {
+            let (location_type, location_code) = match location_type {
+                ALBLocationType::AwsRegion(region) => ("region", region.to_str()),
+                ALBLocationType::AwsWavelengthZone(wave_length_zone) => {
+                    ("wave-length", wave_length_zone.as_str())
+                }
+                ALBLocationType::AwsLocalZone(local_zone) => ("local-zone", local_zone.as_str()),
+            };
+            ("ALB", location_type, location_code)
+        }
+        ElbType::NLB => ("NLB", "region", region.to_str()),
+        ElbType::GWLB => ("GWLB", "region", region.to_str()),
+        ElbType::CLB => ("CLB", "region", region.to_str()),
+    };
+    let mut response = db
+        .query(
+            r"select hour_cost, lcu_cost, trust_store_cost, lcu_reserve_cost, uom from elb_pricing where 
+            elb_type=$elb_type and 
+            location_type=$location_type and 
+            location_code=$location_code
+        ",
+        )
+        .bind(("elb_type", elb_type))
+        .bind(("location_type", location_type))
+        .bind(("location_code", location_code))
+        .await?;
+
+    let records: Vec<ElbPriceResponse> = response.take(0).context("Error during take response")?;
+    // Lấy bản ghi đầu tiên nếu tìm thấy, nếu không trả về lỗi
+    let price_record = records.into_iter().next().ok_or_else(|| {
+        anyhow::anyhow!(
+            "Không tìm thấy giá cho elb_type '{}' và location_type '{}' và location_code '{}'",
+            elb_type,
+            location_type,
+            location_code
+        )
+    })?;
+
+    let price = price_record.hour_cost
+        + price_record.lcu_cost.unwrap_or_default()
+        + price_record.lcu_reserve_cost.unwrap_or_default()
+        + price_record.trust_store_cost.unwrap_or_default();
+
+    let uom = UOM::from_str(&price_record.uom).context("Error during parse unit of price")?;
+
+    Ok((price, uom))
+}
+
+#[derive(Debug, SurrealValue)]
+struct ElbPriceResponse {
+    hour_cost: f64,
+    lcu_cost: Option<f64>,
+    trust_store_cost: Option<f64>,
+    lcu_reserve_cost: Option<f64>,
+    uom: String,
 }
