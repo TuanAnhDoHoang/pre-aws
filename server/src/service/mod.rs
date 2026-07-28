@@ -3,9 +3,11 @@ use std::str::FromStr;
 use anyhow::anyhow;
 use serde::Deserialize;
 
+pub mod types;
 pub mod ec2;
 pub mod rds;
 pub mod s3;
+pub mod elb;
 
 #[derive(Debug, Deserialize)]
 pub enum Region {
