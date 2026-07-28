@@ -363,7 +363,11 @@ export default function PropertyPanel({
     const selectedNode = activeNode;
 
     const def = SERVICE_DEFINITIONS[selectedNode.type];
-    const props = selectedNode.properties;
+    const props = selectedNode.properties || {};
+    const isElbNode = selectedNode.type === 'tg' && selectedNode.name.toLowerCase().includes('elb');
+    const elbType = props.elb_type || 'ALB';
+    const locationType = props.location_type || 'region';
+    const locationCode = props.location_code || '';
 
     return (
       <div className="p-4 border-b border-[#141414] bg-[#E4E3E0]">
@@ -740,6 +744,89 @@ export default function PropertyPanel({
                 </label>
               </div>
             </>
+          )}
+
+          {/* ELB Fields */}
+          {isElbNode && (
+            <div className="space-y-2 border border-[#141414] bg-white p-3 rounded-none">
+              <div>
+                <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                  ELB Type
+                </label>
+                <select
+                  value={elbType}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    onUpdateNodeProperties(selectedNode.id, {
+                      ...props,
+                      elb_type: nextType,
+                      location_type: nextType === 'ALB' ? (props.location_type || 'region') : 'region',
+                      location_code: nextType === 'ALB' ? (props.location_code || '') : '',
+                    });
+                  }}
+                  className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+                >
+                  <option value="ALB">ALB</option>
+                  <option value="NLB">NLB</option>
+                  <option value="GWLB">GWLB</option>
+                  <option value="CLB">CLB</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                  Location Type
+                </label>
+                {elbType === 'ALB' ? (
+                  <select
+                    value={locationType}
+                    onChange={(e) => onUpdateNodeProperties(selectedNode.id, {
+                      ...props,
+                      location_type: e.target.value,
+                    })}
+                    className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+                  >
+                    <option value="region">region</option>
+                    <option value="wave-length">wave-length</option>
+                    <option value="local-zone">local-zone</option>
+                  </select>
+                ) : (
+                  <div className="w-full bg-[#E4E3E0] border border-[#141414] px-2 py-1.5 text-xs text-on-surface">
+                    region
+                  </div>
+                )}
+              </div>
+
+              {elbType === 'ALB' && locationType !== 'region' && (
+                <div>
+                  <label className="block text-[10px] font-black text-on-surface uppercase mb-1 tracking-wider">
+                    Location Code
+                  </label>
+                  <select
+                    value={locationCode || ''}
+                    onChange={(e) => onUpdateNodeProperties(selectedNode.id, {
+                      ...props,
+                      location_code: e.target.value,
+                    })}
+                    className="w-full bg-white border border-[#141414] rounded-none px-2 py-1.5 text-xs text-on-surface focus:outline-hidden"
+                  >
+                    <option value="">-- Chọn location code --</option>
+                    {locationType === 'wave-length' && (
+                      <>
+                        <option value="ap-northeast-1-wl1-tyo1">ap-northeast-1-wl1-tyo1</option>
+                        <option value="ap-northeast-1-wl1-osa1">ap-northeast-1-wl1-osa1</option>
+                      </>
+                    )}
+                    {locationType === 'local-zone' && (
+                      <>
+                        <option value="ap-southeast-1-han-1a">ap-southeast-1-han-1a</option>
+                        <option value="ap-southeast-1-bkk-1a">ap-southeast-1-bkk-1a</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Target Group Fields */}

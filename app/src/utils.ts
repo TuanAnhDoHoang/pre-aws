@@ -244,14 +244,57 @@ export async function fetchServicePrice(payload: ServicePricePayload): Promise<S
   }
 
   if (serviceType === 'tg') {
-    const baseRate = PRICE_CATALOG['elb'].hourly * mult;
-    const finalPrice = Number(baseRate.toFixed(4));
-    return {
-      price: finalPrice,
-      unit: 'USD/giờ',
-      display: `$${finalPrice} USD/giờ`,
-      payloadSent: payload,
-    };
+    try {
+      const elbType = properties.elb_type || 'ALB';
+      const locationType = properties.location_type || 'region';
+      const locationCode = properties.location_code || region;
+
+      let elbPayload: Record<string, any> = {
+        elb_type: elbType,
+      };
+
+      if (elbType === 'ALB') {
+        const locationKey = locationType === 'wave-length'
+          ? 'aws-wavelength-zone'
+          : locationType === 'local-zone'
+            ? 'aws-local-zone'
+            : 'aws-region';
+
+        elbPayload = {
+          elb_type: {
+            ALB: {
+              [locationKey]: locationCode,
+            },
+          },
+        };
+      }
+
+      const response = await axios.post('http://localhost:5000/price', {
+        region,
+        service: 'ELB',
+        options: {
+          Elb: elbPayload,
+        },
+      });
+
+      const price = response.data.price;
+      const uom = response.data.uom;
+      return {
+        price,
+        unit: uom,
+        display: `$${price} ${uom}`,
+        payloadSent: payload,
+      };
+    } catch {
+      const baseRate = PRICE_CATALOG['elb'].hourly * mult;
+      const finalPrice = Number(baseRate.toFixed(4));
+      return {
+        price: finalPrice,
+        unit: 'USD/giờ',
+        display: `$${finalPrice} USD/giờ`,
+        payloadSent: payload,
+      };
+    }
   }
 
   if (serviceType === 'cloudfront') {
