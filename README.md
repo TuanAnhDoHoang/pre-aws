@@ -26,3 +26,5 @@
 5. Xuất hoặc xem mã Terraform để triển khai tiếp theo.
 
 > Lưu ý: các số liệu phí được thiết kế để mô phỏng và minh họa, dựa trên mô hình giá tham khảo của AWS, không thay thế cho báo giá hoặc bảng giá chính thức từ AWS.
+
+![Screenshot ứng dụng](./Demo.png)
