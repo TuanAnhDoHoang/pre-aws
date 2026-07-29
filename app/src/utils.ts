@@ -136,6 +136,14 @@ export interface ServicePriceResult {
   unit: string;
   display: string;
   payloadSent?: ServicePricePayload;
+  status?: 'ok' | 'error';
+  errorMessage?: string;
+}
+
+export function isHourlyUnit(unit: string): boolean {
+  if (!unit) return false;
+  const normalized = unit.toLowerCase();
+  return normalized.includes('giờ') || normalized.includes('hour') || normalized.includes('/h');
 }
 
 /**
@@ -335,6 +343,39 @@ export async function fetchServicePrice(payload: ServicePricePayload): Promise<S
   };
 }
 
+export async function fetchNodeServicePrice(node: CloudNode, region: string = 'ap-southeast-1'): Promise<ServicePriceResult> {
+  const payload: ServicePricePayload = {
+    serviceType: node.type,
+    region,
+    name: node.name,
+    properties: node.properties || {},
+  };
+
+  try {
+    const result = await fetchServicePrice(payload);
+    return {
+      ...result,
+      status: 'ok',
+    };
+  } catch (error) {
+    return {
+      price: 0,
+      unit: 'USD/giờ',
+      display: '0.00 USD/giờ',
+      payloadSent: payload,
+      status: 'error',
+      errorMessage: error instanceof Error ? error.message : 'Fetch failed',
+    };
+  }
+}
+
+export async function fetchPricesForNodes(nodes: CloudNode[], region: string = 'ap-southeast-1'): Promise<Record<string, ServicePriceResult>> {
+  const entries = await Promise.all(
+    nodes.map(async (node) => [node.id, await fetchNodeServicePrice(node, region)] as [string, ServicePriceResult])
+  );
+  return Object.fromEntries(entries);
+}
+
 // Calculate cost for a single node synchronously
 export function calculateNodeCost(node: CloudNode, region: string = 'ap-southeast-1'): { hourly: number; unit: string; display: string } {
   const payload: ServicePricePayload = {
@@ -360,7 +401,7 @@ export function calculateNodeCost(node: CloudNode, region: string = 'ap-southeas
   }
 
   if (node.type === 'rds') {
-    const instClass = node.properties?.instance_class || 'db.t3.micro';
+    const instClass = node.properties?.instance_class || node.properties?.instance_type || 'db.t3.micro';
     const baseRate = PRICE_CATALOG[instClass]?.hourly || 0.017;
     const storageGB = Number(node.properties?.allocated_storage) || 20;
     const storageCostPerHour = (storageGB * 0.115) / 720;

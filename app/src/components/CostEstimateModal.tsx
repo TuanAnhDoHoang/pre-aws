@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CloudNode, SERVICE_DEFINITIONS } from '../types';
-import { calculateNodeCost } from '../utils';
+import { calculateNodeCost, ServicePriceResult } from '../utils';
 
 interface CostEstimateModalProps {
   nodes: CloudNode[];
@@ -11,6 +11,33 @@ interface CostEstimateModalProps {
 
 export default function CostEstimateModal({ nodes, onClose, isOpen, region = 'ap-southeast-1' }: CostEstimateModalProps) {
   const [activeHoursPerDay, setActiveHoursPerDay] = useState<number>(24);
+  const getNodePrice = (node: CloudNode) => {
+    const price = node.pricing;
+    if (price?.status === 'ok') {
+      return price;
+    }
+    return {
+      price: 0,
+      unit: 'USD/giờ',
+      display: price?.status === 'loading' ? 'Đang tải...' : '0.00 USD/giờ',
+      status: price?.status || 'error',
+      errorMessage: price?.errorMessage,
+    };
+  };
+
+  const estimateMonthlyCost = (node: CloudNode, price: ServicePriceResult, monthlyHours: number) => {
+    if (price.unit.includes('USD/giờ')) {
+      return price.price * monthlyHours;
+    }
+    if (price.unit.includes('USD/GB/tháng') || price.unit.includes('USD/GB')) {
+      const assumedGb = 50;
+      return price.price * assumedGb;
+    }
+    if (price.unit.includes('USD/triệu request')) {
+      return price.price;
+    }
+    return price.price;
+  };
 
   if (!isOpen) return null;
 
@@ -28,16 +55,9 @@ export default function CostEstimateModal({ nodes, onClose, isOpen, region = 'ap
 
   nodes.forEach((node) => {
     const def = SERVICE_DEFINITIONS[node.type];
-    const cost = calculateNodeCost(node, region);
-    
-    // Monthly calculation
-    let monthlyCost = 0;
-    if (node.type === 's3') {
-      // S3 flat estimated monthly rate (e.g. $15 basic estimate)
-      monthlyCost = 15;
-    } else {
-      monthlyCost = cost.hourly * monthlyHours;
-    }
+    const price = getNodePrice(node);
+
+    const monthlyCost = estimateMonthlyCost(node, price, monthlyHours);
 
     if (categories[def.category]) {
       categories[def.category].nodes.push(node);
@@ -155,15 +175,9 @@ export default function CostEstimateModal({ nodes, onClose, isOpen, region = 'ap
                     </tr>
                   ) : (
                     nodes.map((node) => {
-                      const cost = calculateNodeCost(node);
+                      const cost = getNodePrice(node);
                       const def = SERVICE_DEFINITIONS[node.type];
-                      
-                      let monthlyEstimate = 0;
-                      if (node.type === 's3') {
-                        monthlyEstimate = 15;
-                      } else {
-                        monthlyEstimate = cost.hourly * monthlyHours;
-                      }
+                      const monthlyEstimate = estimateMonthlyCost(node, cost, monthlyHours);
 
                       return (
                         <tr key={node.id} className="hover:bg-black/5">
@@ -172,7 +186,7 @@ export default function CostEstimateModal({ nodes, onClose, isOpen, region = 'ap
                             {def.label}
                           </td>
                           <td className="p-3 text-right font-mono text-[10px] text-[#F27D26]">
-                            {node.type === 's3' ? '--' : `$${cost.hourly.toFixed(3)}/h`}
+                            {cost.display}
                           </td>
                           <td className="p-3 text-right font-mono text-[10px] text-[#F27D26] font-extrabold">
                             ${monthlyEstimate.toFixed(2)}

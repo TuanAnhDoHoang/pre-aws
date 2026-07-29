@@ -9,6 +9,14 @@ export type ServiceType =
   | 'cloudfront'
   | 'elb';
 
+export interface NodePricing {
+  price: number;
+  unit: string;
+  display: string;
+  status: 'loading' | 'ok' | 'error';
+  errorMessage?: string;
+}
+
 export interface CloudNode {
   id: string;
   type: ServiceType;
@@ -17,6 +25,7 @@ export interface CloudNode {
   y: number;
   properties: Record<string, any>;
   status?: 'active' | 'inactive' | 'error';
+  pricing?: NodePricing;
 }
 
 export interface Connection {

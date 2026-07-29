@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CloudNode, ServiceType, SERVICE_DEFINITIONS } from '../types';
-import { generateFullTerraform, fetchServicePrice, ServicePricePayload, ServicePriceResult } from '../utils';
+import { generateFullTerraform } from '../utils';
 import AwsIcon from './AwsIcons';
 
 interface PropertyPanelProps {
@@ -140,32 +140,19 @@ export default function PropertyPanel({
   const [savedWidth, setSavedWidth] = useState(320);
   const [activeTab, setActiveTab] = useState<'info' | 'terraform'>('info');
 
-  // Price fetching state
-  const [fetchedPrice, setFetchedPrice] = useState<ServicePriceResult | null>(null);
-  const [isFetchingPrice, setIsFetchingPrice] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!selectedNode) {
-      setFetchedPrice(null);
-      return;
+  const getSelectedNodePrice = () => {
+    const price = selectedNode?.pricing;
+    if (price?.status === 'ok') {
+      return price;
     }
-    setIsFetchingPrice(true);
-    const payload: ServicePricePayload = {
-      serviceType: selectedNode.type,
-      region,
-      name: selectedNode.name,
-      properties: selectedNode.properties || {},
+    return {
+      price: 0,
+      unit: 'USD/giờ',
+      display: price?.status === 'loading' ? 'Đang tải...' : '0.00 USD/giờ',
+      status: price?.status || 'error',
+      errorMessage: price?.errorMessage,
     };
-
-    fetchServicePrice(payload)
-      .then((res) => {
-        setFetchedPrice(res);
-        setIsFetchingPrice(false);
-      })
-      .catch(() => {
-        setIsFetchingPrice(false);
-      });
-  }, [selectedNode?.id, selectedNode?.name, JSON.stringify(selectedNode?.properties), region]);
+  };
 
   useEffect(() => {
     if (selectedNode || selectedServiceType) {
@@ -453,26 +440,28 @@ export default function PropertyPanel({
             />
           </div>
 
-          {/* Price fetched from server (Giả lập fetch price với thông tin + region) */}
+          {/* Stored node pricing */}
           <div className="bg-[#141414] text-white p-3 border border-[#141414] rounded-none mt-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-black uppercase text-[#F27D26] tracking-wider flex items-center gap-1">
                 <span className="material-symbols-outlined text-xs">payments</span>
-                Giá từ Server (Fetch Price)
+                Giá hiện tại của node
               </span>
-              {isFetchingPrice ? (
-                <span className="text-[10px] text-gray-400 font-mono animate-pulse">Đang lấy giá...</span>
-              ) : (
-                <span className="text-xs font-black font-mono text-emerald-400">
-                  {fetchedPrice?.display || '---'}
-                </span>
-              )}
+              <span className="text-xs font-black font-mono text-emerald-400">
+                {getSelectedNodePrice().display}
+              </span>
             </div>
             <div className="text-[9px] text-gray-300 font-mono mt-1.5 pt-1.5 border-t border-gray-800 flex justify-between items-center">
-              <span>Đơn vị: <strong className="text-white">{fetchedPrice?.unit || 'USD/giờ'}</strong></span>
+              <span>Đơn vị: <strong className="text-white">{getSelectedNodePrice().unit}</strong></span>
               <span>Region: <strong className="text-[#F27D26]">{region}</strong></span>
             </div>
+            {getSelectedNodePrice().status === 'error' && (
+              <div className="mt-2 text-[10px] text-red-300 font-bold">
+                Không thể lấy giá mới, đang dùng giá mặc định 0.00 USD/giờ.
+              </div>
+            )}
           </div>
+          
           {/* Compute Specific Fields (EC2: chỉ chọn tên, instance type) */}
           {selectedNode.type === 'compute' && (
             <div>
@@ -490,7 +479,6 @@ export default function PropertyPanel({
               </select>
             </div>
           )}
-
 
           {/* RDS Database Specific Fields */}
           {selectedNode.type === 'rds' && (

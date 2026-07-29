@@ -1,18 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { CloudNode } from '../types';
-import { calculateNodeCost } from '../utils';
+import { calculateNodeCost, isHourlyUnit } from '../utils';
 
 interface CostMonitorProps {
   nodes: CloudNode[];
   onClose: () => void;
   isPlaying: boolean;
+  isVisible?: boolean;
   region?: string;
 }
 
-export default function CostMonitor({ nodes, onClose, isPlaying, region = 'ap-southeast-1' }: CostMonitorProps) {
+export default function CostMonitor({ nodes, onClose, isPlaying, isVisible = true, region = 'ap-southeast-1' }: CostMonitorProps) {
   const [startTime, setStartTime] = useState<string>('--:--:--');
   const [currentTime, setCurrentTime] = useState<string>('--:--:--');
   const [accumulatedCost, setAccumulatedCost] = useState<number>(0.0);
+
+  const getNodePrice = (node: CloudNode) => {
+    const price = node.pricing;
+    if (price?.status === 'ok') {
+      return price;
+    }
+    return {
+      price: 0,
+      unit: 'USD/giờ',
+      display: price?.status === 'loading' ? 'Đang tải...' : '0.00 USD/giờ',
+      status: price?.status || 'error',
+    };
+  };
+
 
   // Set Start Time when simulation begins
   useEffect(() => {
@@ -33,7 +48,10 @@ export default function CostMonitor({ nodes, onClose, isPlaying, region = 'ap-so
         setCurrentTime(now.toTimeString().split(' ')[0]);
 
         // Calculate rate of cost per second: total hourly rate / 3600
-        const totalHourly = nodes.reduce((sum, node) => sum + calculateNodeCost(node, region).hourly, 0);
+        const totalHourly = nodes.reduce((sum, node) => {
+          const price = getNodePrice(node);
+          return sum + (isHourlyUnit(price.unit) ? price.price : calculateNodeCost(node, region).hourly);
+        }, 0);
         const costPerSecond = totalHourly / 3600;
         setAccumulatedCost((prev) => prev + costPerSecond);
       }, 1000);
@@ -45,10 +63,17 @@ export default function CostMonitor({ nodes, onClose, isPlaying, region = 'ap-so
   if (!isPlaying) return null;
 
   // Calculate distinct costs
-  const totalHourly = nodes.reduce((sum, idx) => sum + calculateNodeCost(idx, region).hourly, 0);
+  const totalHourly = nodes.reduce((sum, node) => {
+    const price = getNodePrice(node);
+    return sum + (isHourlyUnit(price.unit) ? price.price : calculateNodeCost(node, region).hourly);
+  }, 0);
 
   return (
-    <div className="absolute top-18 right-4 w-80 bg-[#F1F0ED] border-2 border-[#141414] rounded-none shadow-none z-30 flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
+    <div
+      className={`absolute top-18 right-4 w-80 bg-[#F1F0ED] border-2 border-[#141414] rounded-none shadow-none z-30 flex flex-col overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200 ${
+        isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+      }`}
+    >
       {/* Header */}
       <div className="p-4 bg-[#141414] text-white flex justify-between items-center shrink-0 rounded-none border-b border-[#141414]">
         <h3 className="font-extrabold text-xs uppercase tracking-widest flex items-center gap-2">
@@ -105,7 +130,7 @@ export default function CostMonitor({ nodes, onClose, isPlaying, region = 'ap-so
               </thead>
               <tbody className="text-on-surface font-medium">
                 {nodes.map((node, index) => {
-                  const cost = calculateNodeCost(node);
+                  const cost = getNodePrice(node);
                   return (
                     <tr key={node.id + index} className="border-b border-[#141414]/20">
                       <td className="py-1.5 text-[11px] truncate max-w-[120px] font-bold" title={node.name}>

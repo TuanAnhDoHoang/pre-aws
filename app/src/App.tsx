@@ -5,7 +5,8 @@ import PropertyPanel from './components/PropertyPanel';
 import CostMonitor from './components/CostMonitor';
 import CostEstimateModal from './components/CostEstimateModal';
 import Footer from './components/Footer';
-import { CloudNode, Connection, ServiceType, SERVICE_DEFINITIONS } from './types';
+import { CloudNode, Connection, NodePricing, ServiceType, SERVICE_DEFINITIONS } from './types';
+import { fetchNodeServicePrice } from './utils';
 import { DesignPattern } from './patterns';
 
 export default function App() {
@@ -62,6 +63,30 @@ export default function App() {
   const displayedNodes = activePattern ? activePattern.nodes : nodes;
   const displayedConnections = activePattern ? activePattern.connections : connections;
 
+  const defaultNodePricing: NodePricing = {
+    price: 0,
+    unit: 'USD/giờ',
+    display: '0.00 USD/giờ',
+    status: 'loading',
+  };
+
+  const setNodePricing = (nodeId: string, pricing: NodePricing) => {
+    setNodes((prev) =>
+      prev.map((n) => (n.id === nodeId ? { ...n, pricing } : n))
+    );
+  };
+
+  const refreshPricingForNode = async (node: CloudNode) => {
+    const servicePrice = await fetchNodeServicePrice(node, region);
+    setNodePricing(node.id, {
+      price: servicePrice.price,
+      unit: servicePrice.unit,
+      display: servicePrice.display,
+      status: servicePrice.status === 'error' ? 'error' : 'ok',
+      errorMessage: servicePrice.errorMessage,
+    });
+  };
+
   // Retrieve the currently selected node
   const selectedNode = displayedNodes.find((n) => n.id === selectedNodeId) || null;
 
@@ -84,11 +109,13 @@ export default function App() {
       y,
       properties: { ...def.defaultProperties },
       status: 'active', // Default to active checkmark
+      pricing: defaultNodePricing,
     };
 
     setNodes((prev) => [...prev, newNode]);
     setSelectedNodeId(id);
     setSelectedServiceType(null); // Clear selected template after adding
+    refreshPricingForNode(newNode);
   };
 
   // Add node at exact drop coordinates
@@ -104,10 +131,12 @@ export default function App() {
       y,
       properties: { ...def.defaultProperties },
       status: 'active',
+      pricing: defaultNodePricing,
     };
 
     setNodes((prev) => [...prev, newNode]);
     setSelectedNodeId(id);
+    refreshPricingForNode(newNode);
   };
 
   // Dragging node coordinate update callback
@@ -119,16 +148,26 @@ export default function App() {
 
   // Update properties of a node
   const handleUpdateNodeProperties = (nodeId: string, updatedProps: Record<string, any>) => {
-    setNodes((prev) =>
-      prev.map((n) => (n.id === nodeId ? { ...n, properties: updatedProps } : n))
-    );
+    setNodes((prev) => {
+      const next = prev.map((n) => (n.id === nodeId ? { ...n, properties: updatedProps } : n));
+      const updatedNode = next.find((n) => n.id === nodeId);
+      if (updatedNode) {
+        refreshPricingForNode(updatedNode);
+      }
+      return next;
+    });
   };
 
   // Update node name
   const handleUpdateNodeName = (nodeId: string, name: string) => {
-    setNodes((prev) =>
-      prev.map((n) => (n.id === nodeId ? { ...n, name } : n))
-    );
+    setNodes((prev) => {
+      const next = prev.map((n) => (n.id === nodeId ? { ...n, name } : n));
+      const updatedNode = next.find((n) => n.id === nodeId);
+      if (updatedNode) {
+        refreshPricingForNode(updatedNode);
+      }
+      return next;
+    });
   };
 
   // Delete node and clean up its connections
@@ -195,6 +234,7 @@ export default function App() {
         ...node,
         id: newId,
         properties: { ...node.properties }, // Deep copy properties
+        pricing: defaultNodePricing,
       };
     });
 
@@ -215,6 +255,8 @@ export default function App() {
     setConnections(clonedConnections);
     setActivePattern(null); // Exit pattern-preview mode and edit this imported setup!
     setSelectedNodeId(null);
+
+    clonedNodes.forEach((node) => refreshPricingForNode(node));
   };
 
   // Zoom control modifiers
@@ -288,10 +330,11 @@ export default function App() {
           />
 
           {/* Floating real-time simulation cost details overlay */}
-          {openMonitor && (
+          {isPlaying && (
             <CostMonitor
               nodes={displayedNodes}
               isPlaying={isPlaying}
+              isVisible={openMonitor}
               onClose={() => setOpenMonitor(false)}
               region={region}
             />

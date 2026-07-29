@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CloudNode, Connection, ServiceType, SERVICE_DEFINITIONS } from '../types';
-import { calculateNodeCost } from '../utils';
+import { calculateNodeCost, isHourlyUnit } from '../utils';
 import AwsIcon from './AwsIcons';
 import RegionSelector from './RegionSelector';
 import PatternSelector from './PatternSelector';
@@ -110,6 +110,19 @@ export default function CanvasArea({
   
   // Selected connection line to support deletion
   const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
+
+  const getNodePrice = (node: CloudNode) => {
+    const price = node.pricing;
+    if (price?.status === 'ok') {
+      return price;
+    }
+    return {
+      price: 0,
+      unit: 'USD/giờ',
+      display: price?.status === 'loading' ? 'Đang tải...' : '0.00 USD/giờ',
+      status: price?.status || 'error',
+    };
+  };
 
   // Initialize panning to center the 800x600 coordinates once canvas dimensions are available
   useEffect(() => {
@@ -844,9 +857,12 @@ export default function CanvasArea({
 
                 {/* Temporary tiny badge showing current hourly rate */}
                 <span className="text-[9px] font-serif italic text-on-surface-variant/80">
-                  {calculateNodeCost(node, region).hourly > 0
-                    ? `$${calculateNodeCost(node, region).hourly.toFixed(3)}/h`
-                    : 'free'}
+                  {(() => {
+                    const price = getNodePrice(node);
+                    return isHourlyUnit(price.unit)
+                      ? `$${price.price.toFixed(3)}/h`
+                      : price.display;
+                  })()}
                 </span>
               </div>
             );
